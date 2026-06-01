@@ -24,6 +24,7 @@
         <h3>FATE 引擎层</h3>
         <el-tag type="success">Flow + Pipeline + Adapter</el-tag>
       </div>
+      <el-alert v-if="usingFallback" title="当前使用内置模板兜底展示；后端模板接口恢复后会自动展示数据库内容。" type="warning" show-icon :closable="false" class="mb" />
       <el-steps :active="components.length" finish-status="success" align-center>
         <el-step
           v-for="item in components"
@@ -32,7 +33,7 @@
           :description="item.layer_type"
         />
       </el-steps>
-      <el-table :data="components" stripe class="mt">
+      <el-table :data="components" stripe class="mt" empty-text="暂无引擎组件模板">
         <el-table-column prop="component_name" label="组件" width="180" />
         <el-table-column prop="layer_type" label="层级" width="170" />
         <el-table-column prop="capability" label="能力说明" />
@@ -47,7 +48,7 @@
           <el-option v-for="item in categories" :key="item" :label="item" :value="item" />
         </el-select>
       </div>
-      <el-table :data="algorithms" stripe>
+      <el-table :data="algorithms" stripe empty-text="暂无算法模板">
         <el-table-column prop="algorithm_name" label="算法" min-width="210" />
         <el-table-column prop="algorithm_category" label="类别" width="190" />
         <el-table-column prop="federated_type" label="联邦类型" width="120" />
@@ -65,6 +66,7 @@
     <div class="panel">
       <h3>业务场景模板</h3>
       <el-row :gutter="14">
+        <el-empty v-if="!scenarios.length" description="暂无场景模板" />
         <el-col v-for="item in scenarios" :key="item.scenario_code" :xs="24" :md="12">
           <div class="scenario-card">
             <div class="scenario-title">{{ item.scenario_name }}</div>
@@ -121,7 +123,7 @@
           <li v-for="reason in recommendResult.reasons" :key="reason">{{ reason }}</li>
         </ul>
       </div>
-      <el-table :data="rules" stripe class="mt">
+      <el-table :data="rules" stripe class="mt" empty-text="暂无推荐规则">
         <el-table-column prop="condition_desc" label="条件" />
         <el-table-column prop="recommended_algorithm" label="推荐算法" width="260" />
         <el-table-column prop="reason" label="推荐原因" />
@@ -134,6 +136,12 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
 import { fateEngineApi } from '../api'
+import {
+  defaultAlgorithms,
+  defaultEngineComponents,
+  defaultRules,
+  defaultScenarios
+} from '../constants/fateTemplates'
 
 const components = ref([])
 const algorithms = ref([])
@@ -142,6 +150,7 @@ const scenarios = ref([])
 const rules = ref([])
 const category = ref('')
 const recommendResult = ref({})
+const usingFallback = ref(false)
 const recommendForm = reactive({
   dataDistribution: 'VERTICAL',
   taskTarget: 'BINARY_CLASSIFICATION',
@@ -159,28 +168,57 @@ const metrics = computed(() => [
 ])
 
 async function loadAlgorithms() {
-  algorithms.value = category.value
-    ? (await fateEngineApi.algorithms({ category: category.value })).data
-    : allAlgorithms.value
+  if (!category.value) {
+    algorithms.value = allAlgorithms.value.length ? allAlgorithms.value : defaultAlgorithms
+    return
+  }
+  try {
+    const data = (await fateEngineApi.algorithms({ category: category.value })).data
+    algorithms.value = data.length ? data : defaultAlgorithms.filter((item) => item.algorithm_category === category.value)
+  } catch {
+    algorithms.value = defaultAlgorithms.filter((item) => item.algorithm_category === category.value)
+    usingFallback.value = true
+  }
 }
 
 async function recommend() {
-  recommendResult.value = (await fateEngineApi.recommend(recommendForm)).data
+  try {
+    recommendResult.value = (await fateEngineApi.recommend(recommendForm)).data
+  } catch {
+    const preferred = recommendForm.explainability ? 'HETERO_LR' : 'HETERO_SECUREBOOST'
+    recommendResult.value = {
+      recommendedAlgorithms: defaultAlgorithms.filter((item) => [preferred, 'HETERO_SECUREBOOST'].includes(item.algorithm_code)),
+      reasons: ['接口暂不可用，已根据内置规则提供兜底推荐。'],
+      needPsi: recommendForm.dataDistribution === 'VERTICAL'
+    }
+    usingFallback.value = true
+  }
 }
 
 async function load() {
-  const [componentRes, algorithmRes, scenarioRes, ruleRes] = await Promise.all([
+  usingFallback.value = false
+  const [componentRes, algorithmRes, scenarioRes, ruleRes] = await Promise.allSettled([
     fateEngineApi.components(),
     fateEngineApi.algorithms(),
     fateEngineApi.scenarios(),
     fateEngineApi.rules()
   ])
-  components.value = componentRes.data
-  allAlgorithms.value = algorithmRes.data
-  algorithms.value = algorithmRes.data
-  scenarios.value = scenarioRes.data
-  rules.value = ruleRes.data
+  components.value = valueOrFallback(componentRes, defaultEngineComponents)
+  allAlgorithms.value = valueOrFallback(algorithmRes, defaultAlgorithms)
+  algorithms.value = allAlgorithms.value
+  scenarios.value = valueOrFallback(scenarioRes, defaultScenarios)
+  rules.value = valueOrFallback(ruleRes, defaultRules)
+  usingFallback.value = [componentRes, algorithmRes, scenarioRes, ruleRes].some((item) => item.status !== 'fulfilled')
+    || !components.value.length
+    || !allAlgorithms.value.length
+    || !scenarios.value.length
+    || !rules.value.length
   await recommend()
+}
+
+function valueOrFallback(result, fallback) {
+  const data = result.status === 'fulfilled' ? result.value.data : []
+  return Array.isArray(data) && data.length ? data : fallback
 }
 
 onMounted(load)
@@ -219,6 +257,10 @@ onMounted(load)
 
 .mt {
   margin-top: 16px;
+}
+
+.mb {
+  margin-bottom: 16px;
 }
 
 .scenario-card {

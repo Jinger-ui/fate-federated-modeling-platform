@@ -62,6 +62,7 @@ import { ElMessage } from 'element-plus'
 import { onMounted, reactive, ref } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 import { fateEngineApi, taskApi } from '../api'
+import { defaultAlgorithms } from '../constants/fateTemplates'
 
 const rows = ref([])
 const algorithms = ref([])
@@ -87,7 +88,12 @@ function tagType(status) {
 
 async function load() {
   rows.value = (await taskApi.list()).data
-  algorithms.value = (await fateEngineApi.algorithms()).data
+  try {
+    const data = (await fateEngineApi.algorithms()).data
+    algorithms.value = data.length ? data : defaultAlgorithms
+  } catch {
+    algorithms.value = defaultAlgorithms
+  }
 }
 async function save() { await taskApi.create(form); dialog.value = false; await load() }
 async function submit(row) { await taskApi.submit(row.id); ElMessage.success('任务已执行'); await load() }
