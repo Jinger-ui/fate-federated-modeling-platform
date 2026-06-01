@@ -41,6 +41,7 @@ export const fateEngineApi = {
   featureGroups: (params) => http.get('/fate/jobs/feature-groups', { params }),
   algorithmTemplates: () => http.get('/fate/jobs/algorithm-templates'),
   scenarioTemplateV2: () => http.get('/fate/jobs/scenario-template-v2'),
+  scenarioDataParams: (params) => http.get('/fate/jobs/scenario-data-params', { params }),
   scenarios: () => http.get('/fate/jobs/scenario-templates'),
   rules: () => http.get('/fate/jobs/recommend-rules'),
   recommend: (data) => http.post('/fate/jobs/recommend', data)

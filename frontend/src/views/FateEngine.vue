@@ -168,12 +168,19 @@
     </div>
 
     <div class="panel">
-      <h3>业务场景模板</h3>
+      <div class="toolbar">
+        <h3>业务场景模板</h3>
+        <el-tag type="success">系统主实现 + 论文扩展展示</el-tag>
+      </div>
       <el-row :gutter="14">
         <el-empty v-if="!scenarios.length" description="暂无场景模板" />
         <el-col v-for="item in scenarios" :key="item.scenario_code" :xs="24" :md="12">
-          <div class="scenario-card">
-            <div class="scenario-title">{{ item.scenario_name }}</div>
+          <div class="scenario-card" :class="{ primary: isMainScenario(item) }">
+            <div class="scenario-title">
+              {{ item.scenario_name }}
+              <el-tag v-if="isMainScenario(item)" type="success" size="small">主场景实际实现</el-tag>
+              <el-tag v-else type="info" size="small">扩展场景</el-tag>
+            </div>
             <p>{{ item.business_goal }}</p>
             <div class="tag-line">
               <el-tag>{{ item.data_distribution }}</el-tag>
@@ -186,6 +193,20 @@
               <el-descriptions-item label="推荐算法">{{ item.recommended_algorithms }}</el-descriptions-item>
               <el-descriptions-item label="评价指标">{{ item.recommended_metrics }}</el-descriptions-item>
             </el-descriptions>
+            <el-alert class="mt" type="info" :closable="false">
+              <template #title>{{ verticalReason(item) }}</template>
+            </el-alert>
+            <el-table :data="scenarioParams(item.scenario_code)" size="small" stripe class="mt" empty-text="暂无数据参数">
+              <el-table-column prop="party_type" label="参与方" width="110" />
+              <el-table-column prop="party_role" label="角色" width="80" />
+              <el-table-column label="标签" width="90">
+                <template #default="{ row }">
+                  <el-tag :type="row.label_owner ? 'success' : 'info'" size="small">{{ row.label_owner ? '有标签' : '无标签' }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="data_fields" label="核心字段" min-width="260" />
+              <el-table-column prop="feature_groups" label="特征类别" min-width="140" />
+            </el-table>
           </div>
         </el-col>
       </el-row>
@@ -249,6 +270,7 @@ import {
   defaultFeatureSteps,
   defaultRiskThresholds,
   defaultRules,
+  defaultScenarioDataParams,
   defaultScenarios
 } from '../constants/fateTemplates'
 
@@ -261,6 +283,7 @@ const featureGroups = ref([])
 const featureSteps = ref([])
 const riskThresholds = ref([])
 const scenarios = ref([])
+const scenarioDataParams = ref([])
 const rules = ref([])
 const category = ref('')
 const recommendResult = ref({})
@@ -316,7 +339,7 @@ async function recommend() {
 
 async function load() {
   usingFallback.value = false
-  const [componentRes, layerRes, experimentRes, groupRes, algorithmRes, featureRes, thresholdRes, scenarioRes, ruleRes] = await Promise.allSettled([
+  const [componentRes, layerRes, experimentRes, groupRes, algorithmRes, featureRes, thresholdRes, scenarioRes, scenarioParamRes, ruleRes] = await Promise.allSettled([
     safeRequest('components'),
     safeRequest('layers'),
     safeRequest('experimentDesigns'),
@@ -325,6 +348,7 @@ async function load() {
     safeRequest('featureSteps'),
     safeRequest('riskThresholds'),
     safeRequest('scenarios'),
+    safeRequest('scenarioDataParams'),
     safeRequest('rules')
   ])
   components.value = valueOrFallback(componentRes, defaultEngineComponents)
@@ -336,8 +360,9 @@ async function load() {
   featureSteps.value = valueOrFallback(featureRes, defaultFeatureSteps)
   riskThresholds.value = valueOrFallback(thresholdRes, defaultRiskThresholds)
   scenarios.value = valueOrFallback(scenarioRes, defaultScenarios)
+  scenarioDataParams.value = valueOrFallback(scenarioParamRes, defaultScenarioDataParams)
   rules.value = valueOrFallback(ruleRes, defaultRules)
-  usingFallback.value = [componentRes, layerRes, experimentRes, groupRes, algorithmRes, featureRes, thresholdRes, scenarioRes, ruleRes].some((item) => item.status !== 'fulfilled')
+  usingFallback.value = [componentRes, layerRes, experimentRes, groupRes, algorithmRes, featureRes, thresholdRes, scenarioRes, scenarioParamRes, ruleRes].some((item) => item.status !== 'fulfilled')
     || !components.value.length
     || !layers.value.length
     || !experimentDesigns.value.length
@@ -346,6 +371,7 @@ async function load() {
     || !featureSteps.value.length
     || !riskThresholds.value.length
     || !scenarios.value.length
+    || !scenarioDataParams.value.length
     || !rules.value.length
   await recommend()
 }
@@ -363,6 +389,21 @@ function valueOrFallback(result, fallback) {
 
 function formatProbability(value) {
   return Number(value || 0).toFixed(2)
+}
+
+function scenarioParams(code) {
+  return scenarioDataParams.value.filter((item) => item.scenario_code === code)
+}
+
+function isMainScenario(item) {
+  return item.main_scene || item.scenario_code === 'LOAN_PRE_DEFAULT_RISK'
+}
+
+function verticalReason(item) {
+  if (item.scenario_code === 'FRAUD_DETECTION_EXT') {
+    return '欺诈特征多为非线性规则组合，例如在网时长短 + 高频换设备 + 夜间高频交易 + 地址频繁变化，树模型更容易捕捉。'
+  }
+  return '银行和运营商有共同用户但特征不同；银行有标签，运营商无标签，符合纵向联邦学习的数据分布。'
 }
 
 onMounted(load)
@@ -414,6 +455,11 @@ onMounted(load)
   border: 1px solid #e5ebf4;
   border-radius: 10px;
   background: #fbfdff;
+}
+
+.scenario-card.primary {
+  border-color: #86efac;
+  background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%);
 }
 
 .layer-card,

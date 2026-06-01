@@ -304,6 +304,23 @@ create table if not exists scenario_template (
   unique key uk_scenario_template_code_v2 (scenario_code)
 );
 
+create table if not exists scenario_data_param (
+  id bigint primary key auto_increment,
+  scenario_code varchar(64) not null,
+  party_type varchar(64) not null,
+  party_role varchar(64) not null,
+  label_owner tinyint not null default 0,
+  label_definition varchar(255),
+  data_fields varchar(1000) not null,
+  feature_groups varchar(500),
+  data_description varchar(500) not null,
+  sample_relation varchar(255),
+  privacy_note varchar(500),
+  sort_no int not null default 0,
+  enabled_flag tinyint not null default 1,
+  key idx_scenario_data_param_code (scenario_code)
+);
+
 create table if not exists business_scenario_template (
   id bigint primary key auto_increment,
   scenario_code varchar(64) not null,

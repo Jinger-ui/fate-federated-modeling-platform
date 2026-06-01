@@ -215,10 +215,45 @@ insert ignore into scenario_template(id, scenario_code, scenario_name, industry,
   (5, 'CREDIT_LIMIT_REGRESSION', '信贷额度预测', '金融风控', 'REGRESSION', '可授信额度或额度调整值', 'HETERO_LINEAR_REGRESSION,SECUREBOOST_REGRESSION', 'MAE,MSE,RMSE,R2,Loss', '扩展连续值预测能力，使平台不局限于二分类任务。', 'RESERVED');
 
 insert ignore into business_scenario_template(id, scenario_code, scenario_name, participant_types, data_distribution, label_owner, recommended_federated_type, recommended_algorithms, recommended_metrics, need_psi, business_goal, sort_no) values
-  (1, 'BANK_OPERATOR_CREDIT_RISK', '银行与运营商信用风险预测', '银行机构,运营商机构', 'VERTICAL', '银行机构', '纵向联邦学习', 'PSI_INTERSECTION,HETERO_LR,HETERO_SECUREBOOST', 'Accuracy,Precision,Recall,F1,AUC,KS,Loss', 1, '在原始数据不出域前提下融合金融信用特征与通信行为特征，预测贷款逾期风险。', 10),
-  (2, 'BANK_PAY_OPERATOR_FRAUD', '银行、支付平台与运营商反欺诈识别', '银行机构,支付平台,运营商机构', 'VERTICAL', '银行或支付平台', '纵向联邦学习', 'PSI_INTERSECTION,HETERO_SECUREBOOST,HETERO_LR', 'Precision,Recall,F1,AUC,KS', 1, '融合交易、账户、通信行为特征识别欺诈交易或异常申请。', 20),
+  (1, 'LOAN_PRE_DEFAULT_RISK', '贷前违约风险评估', '银行机构,运营商机构', 'VERTICAL', '银行机构', '纵向联邦学习', 'PSI_INTERSECTION,HETERO_LR,HETERO_SECUREBOOST', 'AUC,KS,Recall,F1-score,Loss', 1, '预测用户申请贷款后是否存在违约风险。银行和运营商拥有共同用户但特征不同，银行持有违约标签，运营商不持有标签，适合纵向联邦。', 10),
+  (2, 'FRAUD_DETECTION_EXT', '反欺诈识别', '银行机构,运营商机构,电商/支付平台', 'VERTICAL', '银行或支付平台', '纵向联邦学习', 'PSI_INTERSECTION,HETERO_SECUREBOOST', 'AUC,PR-AUC,Recall,Precision,Recall@TopK', 1, '识别异常申请贷款、异常开户、异常交易用户。欺诈特征通常是非线性和规则组合型，树模型更适合作为主模型。', 20),
   (3, 'OPERATOR_INTERNET_CHURN', '运营商与互联网平台客户流失预测', '运营商机构,互联网平台', 'VERTICAL', '运营商机构', '纵向联邦学习', 'PSI_INTERSECTION,HETERO_LR,HETERO_SECUREBOOST', 'Accuracy,Recall,F1,AUC,Loss', 1, '通过通信行为和互联网活跃特征预测客户流失概率，支撑精细化运营。', 30),
   (4, 'MULTI_BANK_HOMO_RISK', '多银行同构信用风险联合建模', '商业银行,区域银行,消费金融机构', 'HORIZONTAL', '各参与银行', '横向联邦学习', 'HOMO_LR,HOMO_SECUREBOOST', 'Accuracy,Precision,Recall,F1,AUC,Loss', 0, '多家银行字段结构一致但样本不同，通过横向联邦提升模型泛化能力。', 40);
+
+update business_scenario_template
+set scenario_code='LOAN_PRE_DEFAULT_RISK',
+    scenario_name='贷前违约风险评估',
+    participant_types='银行机构,运营商机构',
+    data_distribution='VERTICAL',
+    label_owner='银行机构',
+    recommended_federated_type='纵向联邦学习',
+    recommended_algorithms='PSI_INTERSECTION,HETERO_LR,HETERO_SECUREBOOST',
+    recommended_metrics='AUC,KS,Recall,F1-score,Loss',
+    need_psi=1,
+    business_goal='预测用户申请贷款后是否存在违约风险。银行和运营商拥有共同用户但特征不同，银行持有违约标签，运营商不持有标签，适合纵向联邦。',
+    sort_no=10
+where id=1;
+
+update business_scenario_template
+set scenario_code='FRAUD_DETECTION_EXT',
+    scenario_name='反欺诈识别',
+    participant_types='银行机构,运营商机构,电商/支付平台',
+    data_distribution='VERTICAL',
+    label_owner='银行或支付平台',
+    recommended_federated_type='纵向联邦学习',
+    recommended_algorithms='PSI_INTERSECTION,HETERO_SECUREBOOST',
+    recommended_metrics='AUC,PR-AUC,Recall,Precision,Recall@TopK',
+    need_psi=1,
+    business_goal='识别异常申请贷款、异常开户、异常交易用户。欺诈特征通常是非线性和规则组合型，树模型更适合作为主模型。',
+    sort_no=20
+where id=2;
+
+insert ignore into scenario_data_param(id, scenario_code, party_type, party_role, label_owner, label_definition, data_fields, feature_groups, data_description, sample_relation, privacy_note, sort_no) values
+  (1, 'LOAN_PRE_DEFAULT_RISK', '银行机构', 'GUEST', 1, '申请贷款后是否逾期/违约，is_overdue: 0/1', 'user_id,age,income_level,credit_score,loan_amount,loan_term,repay_history,is_overdue', '基础信息,信用记录,贷款记录,违约标签', '银行持有用户基础信息、信用记录、贷款申请记录和违约标签，是贷前风险评估的标签方。', '与运营商通过 user_id/手机号 hash 后进行 PSI 样本对齐', '平台仅保存资产元数据与任务结果，不保存银行原始样本和明文用户 ID。', 10),
+  (2, 'LOAN_PRE_DEFAULT_RISK', '运营商机构', 'HOST', 0, '无标签', 'user_id,monthly_fee,package_type,online_months,number_stability,arrears_count,payment_delay_days,data_usage,call_duration,active_days', '消费能力,稳定性,履约行为,活跃度', '运营商持有通信消费、在网稳定性、欠费履约和活跃度特征，用于补充银行侧信用信息。', '与银行侧共同用户对齐后参与纵向联邦训练', '运营商原始通信行为数据不出域，仅在 FATE 组件中参与加密计算。', 20),
+  (3, 'FRAUD_DETECTION_EXT', '银行机构', 'GUEST', 1, '是否异常申请/欺诈交易，fraud_label: 0/1', 'user_id,transaction_count,night_trade_count,account_status,device_bind_count,loan_apply_count,fraud_label', '交易频次,账户状态,欺诈标签', '银行提供交易频次、账户状态、申请行为和欺诈标签，用于定义反欺诈监督学习目标。', '与运营商、电商/支付平台通过 PSI 对齐共同用户', '交易流水和账户状态仅保留在银行本地。', 10),
+  (4, 'FRAUD_DETECTION_EXT', '运营商机构', 'HOST', 0, '无标签', 'user_id,online_months,arrears_count,device_abnormal_count,number_stability,sim_change_count', '号码稳定性,欠费记录,设备异常', '运营商提供手机号在网时长、欠费记录、设备异常和号码稳定性，辅助识别短期异常号和高风险设备行为。', '作为纵向联邦 host 参与多方特征联合', '号码和设备相关数据不出运营商域。', 20),
+  (5, 'FRAUD_DETECTION_EXT', '电商/支付平台', 'HOST', 0, '无标签或弱标签', 'user_id,address_change_count,pay_device_count,trade_frequency,refund_count,night_active_ratio', '地址变化,支付设备,交易频率', '电商/支付平台提供地址变更、支付设备、交易频率和退款行为等场景化欺诈特征。', '与银行、运营商共同用户进行多 host 纵向联邦', '平台仅接收特征元数据和模型指标，不接收支付明细原文。', 30);
 
 insert ignore into algorithm_recommend_rule(id, rule_code, condition_desc, recommended_type, recommended_algorithm, reason, priority) values
   (1, 'RULE_VERTICAL_FEATURE_SPLIT', '多方拥有相同用户但不同特征', 'VERTICAL', 'HETERO_LR,HETERO_SECUREBOOST', '该数据分布符合纵向联邦学习，需先进行 PSI 样本对齐。', 100),

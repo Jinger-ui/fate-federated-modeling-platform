@@ -152,6 +152,20 @@ public class FateController {
                 """));
     }
 
+    @GetMapping("/scenario-data-params")
+    public ApiResponse<Object> scenarioDataParams(@RequestParam(required = false) String scenarioCode) {
+        if (scenarioCode == null || scenarioCode.isBlank()) {
+            return ApiResponse.ok(jdbcTemplate.queryForList("""
+                    select * from scenario_data_param
+                    where enabled_flag=1 order by scenario_code, sort_no, id
+                    """));
+        }
+        return ApiResponse.ok(jdbcTemplate.queryForList("""
+                select * from scenario_data_param
+                where enabled_flag=1 and scenario_code=? order by sort_no, id
+                """, scenarioCode));
+    }
+
     @GetMapping("/scenario-templates")
     public ApiResponse<Object> scenarioTemplates() {
         return ApiResponse.ok(jdbcTemplate.queryForList("""

@@ -384,28 +384,30 @@ export const defaultFeatureGroups = [
 
 export const defaultScenarios = [
   {
-    scenario_code: 'BANK_OPERATOR_CREDIT_RISK',
-    scenario_name: '银行与运营商信用风险预测',
+    scenario_code: 'LOAN_PRE_DEFAULT_RISK',
+    scenario_name: '贷前违约风险评估',
     participant_types: '银行机构,运营商机构',
     data_distribution: 'VERTICAL',
     label_owner: '银行机构',
     recommended_federated_type: '纵向联邦学习',
     recommended_algorithms: 'PSI_INTERSECTION,HETERO_LR,HETERO_SECUREBOOST',
-    recommended_metrics: 'Accuracy,Precision,Recall,F1,AUC,KS,Loss',
+    recommended_metrics: 'AUC,KS,Recall,F1-score,Loss',
     need_psi: 1,
-    business_goal: '在原始数据不出域前提下融合金融信用特征与通信行为特征，预测贷款逾期风险。'
+    business_goal: '预测用户申请贷款后是否存在违约风险。银行和运营商有共同用户但特征不同，银行有标签，运营商无标签，适合纵向联邦。',
+    main_scene: true
   },
   {
-    scenario_code: 'BANK_PAY_OPERATOR_FRAUD',
-    scenario_name: '银行、支付平台与运营商反欺诈识别',
+    scenario_code: 'FRAUD_DETECTION_EXT',
+    scenario_name: '反欺诈识别',
     participant_types: '银行机构,支付平台,运营商机构',
     data_distribution: 'VERTICAL',
     label_owner: '银行或支付平台',
     recommended_federated_type: '纵向联邦学习',
-    recommended_algorithms: 'PSI_INTERSECTION,HETERO_SECUREBOOST,HETERO_LR',
-    recommended_metrics: 'Precision,Recall,F1,AUC,KS',
+    recommended_algorithms: 'PSI_INTERSECTION,HETERO_SECUREBOOST',
+    recommended_metrics: 'AUC,PR-AUC,Recall,Precision,Recall@TopK',
     need_psi: 1,
-    business_goal: '融合交易、账户、通信行为特征识别欺诈交易或异常申请。'
+    business_goal: '识别异常申请贷款、异常开户、异常交易用户。欺诈特征通常是非线性和规则组合型，因此 Hetero SecureBoost 更适合作为主模型。',
+    main_scene: false
   },
   {
     scenario_code: 'OPERATOR_INTERNET_CHURN',
@@ -418,6 +420,69 @@ export const defaultScenarios = [
     recommended_metrics: 'Accuracy,Recall,F1,AUC,Loss',
     need_psi: 1,
     business_goal: '通过通信行为和互联网活跃特征预测客户流失概率，支撑精细化运营。'
+  }
+]
+
+export const defaultScenarioDataParams = [
+  {
+    scenario_code: 'LOAN_PRE_DEFAULT_RISK',
+    party_type: '银行机构',
+    party_role: 'GUEST',
+    label_owner: 1,
+    label_definition: '申请贷款后是否逾期/违约，is_overdue: 0/1',
+    data_fields: 'user_id,age,income_level,credit_score,loan_amount,loan_term,repay_history,is_overdue',
+    feature_groups: '基础信息,信用记录,贷款记录,违约标签',
+    data_description: '银行持有用户基础信息、信用记录、贷款申请记录和违约标签，是贷前风险评估的标签方。',
+    sample_relation: '与运营商通过 user_id/手机号 hash 后进行 PSI 样本对齐',
+    privacy_note: '平台仅保存资产元数据与任务结果，不保存银行原始样本和明文用户 ID。'
+  },
+  {
+    scenario_code: 'LOAN_PRE_DEFAULT_RISK',
+    party_type: '运营商机构',
+    party_role: 'HOST',
+    label_owner: 0,
+    label_definition: '无标签',
+    data_fields: 'user_id,monthly_fee,package_type,online_months,number_stability,arrears_count,payment_delay_days,data_usage,call_duration,active_days',
+    feature_groups: '消费能力,稳定性,履约行为,活跃度',
+    data_description: '运营商持有通信消费、在网稳定性、欠费履约和活跃度特征，用于补充银行侧信用信息。',
+    sample_relation: '与银行侧共同用户对齐后参与纵向联邦训练',
+    privacy_note: '运营商原始通信行为数据不出运营商域。'
+  },
+  {
+    scenario_code: 'FRAUD_DETECTION_EXT',
+    party_type: '银行机构',
+    party_role: 'GUEST',
+    label_owner: 1,
+    label_definition: '是否异常申请/欺诈交易，fraud_label: 0/1',
+    data_fields: 'user_id,transaction_count,night_trade_count,account_status,device_bind_count,loan_apply_count,fraud_label',
+    feature_groups: '交易频次,账户状态,欺诈标签',
+    data_description: '银行提供交易频次、账户状态、申请行为和欺诈标签，用于定义反欺诈监督学习目标。',
+    sample_relation: '与运营商、电商/支付平台通过 PSI 对齐共同用户',
+    privacy_note: '交易流水和账户状态仅保留在银行本地。'
+  },
+  {
+    scenario_code: 'FRAUD_DETECTION_EXT',
+    party_type: '运营商机构',
+    party_role: 'HOST',
+    label_owner: 0,
+    label_definition: '无标签',
+    data_fields: 'user_id,online_months,arrears_count,device_abnormal_count,number_stability,sim_change_count',
+    feature_groups: '号码稳定性,欠费记录,设备异常',
+    data_description: '运营商提供手机号在网时长、欠费记录、设备异常和号码稳定性，辅助识别短期异常号和高风险设备行为。',
+    sample_relation: '作为纵向联邦 host 参与多方特征联合',
+    privacy_note: '号码和设备相关数据不出运营商域。'
+  },
+  {
+    scenario_code: 'FRAUD_DETECTION_EXT',
+    party_type: '电商/支付平台',
+    party_role: 'HOST',
+    label_owner: 0,
+    label_definition: '无标签或弱标签',
+    data_fields: 'user_id,address_change_count,pay_device_count,trade_frequency,refund_count,night_active_ratio',
+    feature_groups: '地址变化,支付设备,交易频率',
+    data_description: '电商/支付平台提供地址变更、支付设备、交易频率和退款行为等场景化欺诈特征。',
+    sample_relation: '与银行、运营商共同用户进行多 host 纵向联邦',
+    privacy_note: '平台仅接收特征元数据和模型指标，不接收支付明细原文。'
   }
 ]
 
