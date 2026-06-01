@@ -166,7 +166,7 @@ public class PlatformService {
         data.put("taskCount", jdbcTemplate.queryForObject("select count(*) from federated_task", Integer.class));
         data.put("runningTaskCount", jdbcTemplate.queryForObject("select count(*) from federated_task where status='RUNNING'", Integer.class));
         data.put("successRate", jdbcTemplate.queryForObject("""
-                select ifnull(round(sum(case when status='SUCCESS' then 1 else 0 end) / nullif(count(*), 0), 4), 0)
+                select ifnull(round(sum(case when status='SUCCESS' then 1 else 0 end) * 1.0 / nullif(count(*), 0), 4), 0)
                 from federated_task
                 """, BigDecimal.class));
         data.put("recentTasks", jdbcTemplate.queryForList("select * from federated_task order by id desc limit 6"));

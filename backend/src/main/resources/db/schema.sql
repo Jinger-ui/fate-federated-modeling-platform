@@ -97,6 +97,7 @@ create table if not exists data_asset_field (
   field_role varchar(32) not null,
   nullable_flag tinyint not null default 1,
   description varchar(255),
+  unique key uk_asset_field (asset_id, field_name),
   key idx_asset_field_asset (asset_id)
 );
 
