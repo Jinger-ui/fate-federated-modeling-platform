@@ -1,0 +1,40 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: fate-platform
+  datasource:
+    url: jdbc:h2:file:./data/fate_platform;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:db/schema.sql
+      data-locations: classpath:db/data.sql
+      continue-on-error: true
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  jackson:
+    time-zone: Asia/Shanghai
+    date-format: yyyy-MM-dd HH:mm:ss
+
+app:
+  jwt-secret: fate-platform-demo-secret-change-me
+  jwt-ttl-seconds: 86400
+
+fate:
+  mode: ${FATE_MODE:FATE_PIPELINE}
+  flow-url: ${FATE_FLOW_URL:http://localhost:9380}
+  pipeline-python: ${FATE_PIPELINE_PYTHON:python}
+  scripts-dir: ${FATE_SCRIPTS_DIR:./fate-scripts}
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true

@@ -1,0 +1,10 @@
+backend/.mvn/apache-maven-*/
+backend/.mvn/*.zip
+backend/.mvn/*.tar.gz
+backend/data/
+backend/target/
+frontend/dist/
+frontend/node_modules/
+*.log
+.idea/
+.vscode/
