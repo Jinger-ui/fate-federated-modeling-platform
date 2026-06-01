@@ -12,6 +12,14 @@ FATE_FLOW_API
 
 当前已实现真实 `FATE_PIPELINE` 调用分支。平台提交联邦任务时，如果任务 `submitType` 为 `FATE_PIPELINE`，后端会调用 `backend/fate-scripts/` 下的 Python Pipeline 脚本。
 
+当前已在 Docker Desktop 中验证 FATE Standalone `1.11.2` 可用，FATE Flow 服务版本查询成功，真实 Hetero LR Pipeline 任务已提交并执行成功。
+
+验证通过的 FATE jobId：
+
+```text
+202606010329149343800
+```
+
 ## 脚本位置
 
 ```text
@@ -47,6 +55,62 @@ $env:DB_PASSWORD='你的MySQL密码'
 $env:FATE_MODE='FATE_PIPELINE'
 $env:FATE_SCRIPTS_DIR='D:/联邦学习/demo-project1/backend/fate-scripts'
 .\mvnw.cmd spring-boot:run
+```
+
+## Docker 启动 FATE Standalone
+
+如果 Docker Desktop 卡住，可先重启 Docker/WSL 后端：
+
+```powershell
+Get-Process docker,com.docker.backend,com.docker.build,com.docker.dev-envs,'Docker Desktop','docker-buildx' -ErrorAction SilentlyContinue | Stop-Process -Force
+wsl --shutdown
+Start-Process -FilePath 'C:\Program Files\Docker\Docker\Docker Desktop.exe' -WindowStyle Hidden
+docker version
+```
+
+拉取并启动 FATE Standalone：
+
+```powershell
+docker pull federatedai/standalone_fate:1.11.2
+docker rm -f standalone_fate
+docker run -d --name standalone_fate -p 18080:8080 -p 9360:9360 -p 9380:9380 federatedai/standalone_fate:1.11.2 tail -f /dev/null
+```
+
+该镜像默认会把 `fateflow.host` 配成 `127.0.0.1`，宿主机访问会出现 `Empty reply from server`。需要把容器内 FATE Flow 监听地址改为容器 IP，并重启 FATE Flow：
+
+```powershell
+$containerIp = docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' standalone_fate
+docker exec standalone_fate python -c "p='/data/projects/fate/conf/service_conf.yaml'; s=open(p).read(); s=s.replace('host: 127.0.0.1','host: $containerIp',1); open(p,'w').write(s)"
+docker exec standalone_fate bash -lc 'cd /data/projects/fate/fateflow; bash bin/service.sh stop || true; bash bin/service.sh start'
+```
+
+验证 FATE Flow：
+
+```powershell
+flow init --ip 127.0.0.1 --port 9380
+pipeline init --ip 127.0.0.1 --port 9380 --log-directory D:/联邦学习/demo-project1/backend/fate-scripts/logs --system-user guest
+flow server versions
+```
+
+## 上传样例数据
+
+项目内置了用于真实 Pipeline 测试的样例数据：
+
+```text
+backend/fate-scripts/sample-data/bank_train_v1.csv
+backend/fate-scripts/sample-data/operator_train_v1.csv
+backend/fate-scripts/upload-bank.json
+backend/fate-scripts/upload-operator.json
+```
+
+由于 FATE Flow Client 对中文路径支持不稳定，建议先复制到英文路径：
+
+```powershell
+New-Item -ItemType Directory -Force -Path C:\fate-upload
+Copy-Item backend\fate-scripts\sample-data\bank_train_v1.csv C:\fate-upload\bank_train_v1.csv -Force
+Copy-Item backend\fate-scripts\sample-data\operator_train_v1.csv C:\fate-upload\operator_train_v1.csv -Force
+flow data upload -c backend\fate-scripts\upload-bank.json --drop
+flow data upload -c backend\fate-scripts\upload-operator.json --drop
 ```
 
 ## FATE 环境要求

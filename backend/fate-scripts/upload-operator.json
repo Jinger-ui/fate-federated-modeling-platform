@@ -1,0 +1,8 @@
+{
+  "file": "C:/fate-upload/operator_train_v1.csv",
+  "id_delimiter": ",",
+  "head": 1,
+  "partition": 4,
+  "namespace": "operator_credit_risk",
+  "table_name": "operator_train_v1"
+}

@@ -1,0 +1,8 @@
+{
+  "file": "C:/fate-upload/bank_train_v1.csv",
+  "id_delimiter": ",",
+  "head": 1,
+  "partition": 4,
+  "namespace": "bank_credit_risk",
+  "table_name": "bank_train_v1"
+}

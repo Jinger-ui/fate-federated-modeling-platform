@@ -237,7 +237,7 @@ public class PlatformService {
             command.add("--host-party-id");
             command.add(String.valueOf(host.get("party_id")));
             command.add("--arbiter-party-id");
-            command.add(String.valueOf(guest.get("party_id")));
+            command.add(String.valueOf(host.get("party_id")));
             command.add("--guest-namespace");
             command.add(guestTable.get("namespace"));
             command.add("--guest-table");

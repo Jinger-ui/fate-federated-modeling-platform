@@ -71,7 +71,8 @@ def main():
 
     pipeline.compile()
     pipeline.fit(JobParameters(backend=args.backend, work_mode=args.work_mode))
-    print(f"FATE_JOB_ID={pipeline.get_job_id()}")
+    job_id = pipeline.get_train_job_id() if hasattr(pipeline, "get_train_job_id") else getattr(pipeline, "_train_job_id", "")
+    print(f"FATE_JOB_ID={job_id}")
 
 
 if __name__ == "__main__":
