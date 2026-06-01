@@ -99,6 +99,59 @@ public class FateController {
                 """));
     }
 
+    @GetMapping("/experiment-designs")
+    public ApiResponse<Object> experimentDesigns() {
+        return ApiResponse.ok(jdbcTemplate.queryForList("""
+                select * from experiment_design_template
+                where enabled_flag=1 order by sort_no, id
+                """));
+    }
+
+    @GetMapping("/feature-groups")
+    public ApiResponse<Object> featureGroups(@RequestParam(required = false) Long datasetId) {
+        if (datasetId == null) {
+            return ApiResponse.ok(jdbcTemplate.queryForList("""
+                    select * from feature_group
+                    where enabled_flag=1 order by sort_no, id
+                    """));
+        }
+        return ApiResponse.ok(jdbcTemplate.queryForList("""
+                select * from feature_group
+                where enabled_flag=1 and dataset_id=? order by sort_no, id
+                """, datasetId));
+    }
+
+    @GetMapping("/algorithm-templates")
+    public ApiResponse<Object> algorithmTemplates() {
+        return ApiResponse.ok(jdbcTemplate.queryForList("""
+                select algorithm_code, algorithm_name, federated_type, task_target as task_type, need_psi,
+                       true as need_label_owner, true as support_multi_host, default_params,
+                       metrics as default_metrics,
+                       case when enabled_flag=1 then 'ENABLED' else 'DISABLED' end as status
+                from federated_algorithm_template
+                order by sort_no, id
+                """));
+    }
+
+    @GetMapping("/scenario-template-v2")
+    public ApiResponse<Object> scenarioTemplateV2() {
+        return ApiResponse.ok(jdbcTemplate.queryForList("""
+                select scenario_code, scenario_name,
+                       case when scenario_code like '%FRAUD%' then '金融安全'
+                            when scenario_code like '%CHURN%' then '运营商'
+                            when scenario_code like '%MARKETING%' then '精准营销'
+                            else '金融风控' end as industry,
+                       case when scenario_code like '%REGRESSION%' then 'REGRESSION' else 'BINARY_CLASSIFICATION' end as task_type,
+                       label_owner as label_definition,
+                       recommended_algorithms as recommended_algorithm,
+                       recommended_metrics,
+                       business_goal as description,
+                       case when enabled_flag=1 then 'ENABLED' else 'DISABLED' end as status
+                from business_scenario_template
+                order by sort_no, id
+                """));
+    }
+
     @GetMapping("/scenario-templates")
     public ApiResponse<Object> scenarioTemplates() {
         return ApiResponse.ok(jdbcTemplate.queryForList("""

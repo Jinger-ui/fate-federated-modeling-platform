@@ -293,6 +293,95 @@ export const defaultRiskThresholds = [
   }
 ]
 
+export const defaultExperimentDesigns = [
+  {
+    experiment_code: 'E1',
+    experiment_name: '银行单方基线',
+    data_scope: '银行特征',
+    algorithm_plan: 'LR / XGBoost',
+    experiment_purpose: '验证银行自身数据在信用风险预测中的基础效果，作为单方模型基线。'
+  },
+  {
+    experiment_code: 'E2',
+    experiment_name: '运营商特征离线分析',
+    data_scope: '运营商特征 + 对齐标签',
+    algorithm_plan: 'LR / XGBoost',
+    experiment_purpose: '分析运营商行为特征对风险识别的独立贡献，为联邦增益解释提供依据。'
+  },
+  {
+    experiment_code: 'E3',
+    experiment_name: '纵向联邦线性模型',
+    data_scope: '银行 + 运营商',
+    algorithm_plan: 'PSI + Hetero LR',
+    experiment_purpose: '验证纵向联邦学习在原始数据不出域条件下联合建模的可行性和可解释性。'
+  },
+  {
+    experiment_code: 'E4',
+    experiment_name: '纵向联邦树模型',
+    data_scope: '银行 + 运营商',
+    algorithm_plan: 'PSI + Hetero SecureBoost',
+    experiment_purpose: '验证非线性树模型在风控表格数据上的效果增强能力。'
+  },
+  {
+    experiment_code: 'E5',
+    experiment_name: '运营商特征消融实验',
+    data_scope: '银行 + 部分运营商特征',
+    algorithm_plan: 'PSI + Hetero SecureBoost',
+    experiment_purpose: '按消费能力、稳定性、履约行为、活跃度逐组加入运营商特征，分析不同特征组对 AUC、KS、Recall 的增益。'
+  }
+]
+
+export const defaultFeatureGroups = [
+  {
+    group_code: 'BANK_BASE',
+    group_name: '银行基础信用特征组',
+    feature_columns: 'age,credit_score,loan_amount,is_overdue',
+    business_meaning: '刻画用户基础信息、信用评分、贷款规模和逾期标签，是信用风险建模的基础特征。',
+    ablation_group: 'A组',
+    ablation_purpose: '只使用银行特征，作为消融实验基线。'
+  },
+  {
+    group_code: 'OPERATOR_CONSUMPTION',
+    group_name: '消费能力特征组',
+    feature_columns: 'monthly_fee,package_type',
+    business_meaning: '月套餐消费与套餐类型反映用户消费能力和支付能力。',
+    ablation_group: 'B组',
+    ablation_purpose: '银行特征 + 消费能力特征，验证消费能力信息增益。'
+  },
+  {
+    group_code: 'OPERATOR_STABILITY',
+    group_name: '稳定性特征组',
+    feature_columns: 'online_months,number_stability',
+    business_meaning: '在网时长和号码稳定性反映用户身份稳定性与长期使用行为。',
+    ablation_group: 'C组',
+    ablation_purpose: '银行特征 + 稳定性特征，验证在网时长、号码稳定性贡献。'
+  },
+  {
+    group_code: 'OPERATOR_PAYMENT_BEHAVIOR',
+    group_name: '履约行为特征组',
+    feature_columns: 'arrears_count,payment_delay_days',
+    business_meaning: '欠费次数与缴费延迟天数反映通信账单履约习惯，与信用违约风险相关。',
+    ablation_group: 'D组',
+    ablation_purpose: '银行特征 + 欠费履约特征，验证履约行为对风险识别的贡献。'
+  },
+  {
+    group_code: 'OPERATOR_ACTIVITY',
+    group_name: '活跃度特征组',
+    feature_columns: 'data_usage,call_duration,active_days',
+    business_meaning: '流量、通话时长和活跃天数反映用户通信活跃程度与真实使用质量。',
+    ablation_group: '扩展组',
+    ablation_purpose: '用于进一步解释通信活跃度对模型效果的影响。'
+  },
+  {
+    group_code: 'OPERATOR_ALL',
+    group_name: '全部运营商特征组',
+    feature_columns: 'monthly_fee,package_type,online_months,number_stability,arrears_count,payment_delay_days,data_usage,call_duration,active_days',
+    business_meaning: '汇总运营商消费能力、稳定性、履约行为和活跃度特征，形成联邦联合模型完整特征空间。',
+    ablation_group: 'E组',
+    ablation_purpose: '银行特征 + 全部运营商特征，作为联邦联合模型完整实验。'
+  }
+]
+
 export const defaultScenarios = [
   {
     scenario_code: 'BANK_OPERATOR_CREDIT_RISK',

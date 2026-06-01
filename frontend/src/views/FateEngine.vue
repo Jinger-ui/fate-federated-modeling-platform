@@ -65,6 +65,25 @@
 
     <div class="panel">
       <div class="toolbar">
+        <h3>E1-E5 实验矩阵</h3>
+        <el-tag type="success">重点：E5 消融实验</el-tag>
+      </div>
+      <el-table :data="experimentDesigns" stripe empty-text="暂无实验设计">
+        <el-table-column prop="experiment_code" label="实验编号" width="100" />
+        <el-table-column prop="experiment_name" label="实验名称" min-width="170" />
+        <el-table-column prop="data_scope" label="数据" min-width="170" />
+        <el-table-column prop="algorithm_plan" label="算法" min-width="190" />
+        <el-table-column prop="experiment_purpose" label="目的" min-width="320" />
+      </el-table>
+      <el-alert class="mt" type="success" :closable="false" show-icon>
+        <template #title>
+          E5 通过逐组加入运营商特征，分析消费能力、稳定性、履约行为、活跃度对 AUC、KS、Recall 的边际贡献，是论文结果分析中最有解释力的实验。
+        </template>
+      </el-alert>
+    </div>
+
+    <div class="panel">
+      <div class="toolbar">
         <h3>算法模板库</h3>
         <el-select v-model="category" clearable placeholder="按算法类型筛选" style="width: 260px" @change="loadAlgorithms">
           <el-option v-for="item in categories" :key="item" :label="item" :value="item" />
@@ -83,6 +102,20 @@
           </template>
         </el-table-column>
         <el-table-column prop="applicable_scenarios" label="适用场景" min-width="260" />
+      </el-table>
+    </div>
+
+    <div class="panel">
+      <div class="toolbar">
+        <h3>特征分组与消融实验</h3>
+        <el-tag type="warning">A组到E组逐步加入运营商特征</el-tag>
+      </div>
+      <el-table :data="featureGroups" stripe empty-text="暂无特征分组">
+        <el-table-column prop="ablation_group" label="实验组" width="90" />
+        <el-table-column prop="group_name" label="特征组" min-width="170" />
+        <el-table-column prop="feature_columns" label="使用特征" min-width="280" />
+        <el-table-column prop="business_meaning" label="业务含义" min-width="260" />
+        <el-table-column prop="ablation_purpose" label="消融目的" min-width="260" />
       </el-table>
     </div>
 
@@ -211,6 +244,8 @@ import {
   defaultAlgorithmLayers,
   defaultAlgorithms,
   defaultEngineComponents,
+  defaultExperimentDesigns,
+  defaultFeatureGroups,
   defaultFeatureSteps,
   defaultRiskThresholds,
   defaultRules,
@@ -221,6 +256,8 @@ const components = ref([])
 const layers = ref([])
 const algorithms = ref([])
 const allAlgorithms = ref([])
+const experimentDesigns = ref([])
+const featureGroups = ref([])
 const featureSteps = ref([])
 const riskThresholds = ref([])
 const scenarios = ref([])
@@ -240,6 +277,8 @@ const categories = computed(() => [...new Set(allAlgorithms.value.map((item) => 
 const metrics = computed(() => [
   { label: '引擎组件', value: components.value.length },
   { label: '算法梯度', value: layers.value.length },
+  { label: '实验矩阵', value: experimentDesigns.value.length },
+  { label: '特征分组', value: featureGroups.value.length },
   { label: '算法模板', value: allAlgorithms.value.length },
   { label: '特征工程', value: featureSteps.value.length },
   { label: '风险策略', value: riskThresholds.value.length },
@@ -277,9 +316,11 @@ async function recommend() {
 
 async function load() {
   usingFallback.value = false
-  const [componentRes, layerRes, algorithmRes, featureRes, thresholdRes, scenarioRes, ruleRes] = await Promise.allSettled([
+  const [componentRes, layerRes, experimentRes, groupRes, algorithmRes, featureRes, thresholdRes, scenarioRes, ruleRes] = await Promise.allSettled([
     safeRequest('components'),
     safeRequest('layers'),
+    safeRequest('experimentDesigns'),
+    safeRequest('featureGroups'),
     safeRequest('algorithms'),
     safeRequest('featureSteps'),
     safeRequest('riskThresholds'),
@@ -288,15 +329,19 @@ async function load() {
   ])
   components.value = valueOrFallback(componentRes, defaultEngineComponents)
   layers.value = valueOrFallback(layerRes, defaultAlgorithmLayers)
+  experimentDesigns.value = valueOrFallback(experimentRes, defaultExperimentDesigns)
+  featureGroups.value = valueOrFallback(groupRes, defaultFeatureGroups)
   allAlgorithms.value = valueOrFallback(algorithmRes, defaultAlgorithms)
   algorithms.value = allAlgorithms.value
   featureSteps.value = valueOrFallback(featureRes, defaultFeatureSteps)
   riskThresholds.value = valueOrFallback(thresholdRes, defaultRiskThresholds)
   scenarios.value = valueOrFallback(scenarioRes, defaultScenarios)
   rules.value = valueOrFallback(ruleRes, defaultRules)
-  usingFallback.value = [componentRes, layerRes, algorithmRes, featureRes, thresholdRes, scenarioRes, ruleRes].some((item) => item.status !== 'fulfilled')
+  usingFallback.value = [componentRes, layerRes, experimentRes, groupRes, algorithmRes, featureRes, thresholdRes, scenarioRes, ruleRes].some((item) => item.status !== 'fulfilled')
     || !components.value.length
     || !layers.value.length
+    || !experimentDesigns.value.length
+    || !featureGroups.value.length
     || !allAlgorithms.value.length
     || !featureSteps.value.length
     || !riskThresholds.value.length

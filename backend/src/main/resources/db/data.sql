@@ -186,6 +186,34 @@ insert ignore into risk_threshold_strategy(id, strategy_code, strategy_name, min
   (2, 'MEDIUM_RISK_REVIEW', '中风险复核策略', 0.3000, 0.6000, 'MEDIUM', '550-699', '人工复核', '结合征信、收入与通信稳定性进行补充审核'),
   (3, 'HIGH_RISK_REJECT', '高风险重点审查策略', 0.6000, 1.0000, 'HIGH', '300-549', '拒绝或重点审查', '进入高风险名单，触发人工复审或拒绝授信');
 
+insert ignore into experiment_design_template(id, experiment_code, experiment_name, data_scope, algorithm_plan, experiment_purpose, baseline_flag, core_flag, sort_no) values
+  (1, 'E1', '银行单方基线', '银行特征', 'LR / XGBoost', '验证银行自身数据在信用风险预测中的基础效果，作为单方模型基线。', 1, 1, 10),
+  (2, 'E2', '运营商特征离线分析', '运营商特征 + 对齐标签', 'LR / XGBoost', '分析运营商行为特征对风险识别的独立贡献，为联邦增益解释提供依据。', 1, 1, 20),
+  (3, 'E3', '纵向联邦线性模型', '银行 + 运营商', 'PSI + Hetero LR', '验证纵向联邦学习在原始数据不出域条件下联合建模的可行性和可解释性。', 0, 1, 30),
+  (4, 'E4', '纵向联邦树模型', '银行 + 运营商', 'PSI + Hetero SecureBoost', '验证非线性树模型在风控表格数据上的效果增强能力。', 0, 1, 40),
+  (5, 'E5', '运营商特征消融实验', '银行 + 部分运营商特征', 'PSI + Hetero SecureBoost', '按消费能力、稳定性、履约行为、活跃度逐组加入运营商特征，分析不同特征组对 AUC、KS、Recall 的增益。', 0, 1, 50);
+
+insert ignore into feature_group(id, dataset_id, group_code, group_name, feature_columns, business_meaning, ablation_group, ablation_purpose, sort_no) values
+  (1, 1, 'BANK_BASE', '银行基础信用特征组', 'age,credit_score,loan_amount,is_overdue', '刻画用户基础信息、信用评分、贷款规模和逾期标签，是信用风险建模的基础特征。', 'A组', '只使用银行特征，作为消融实验基线。', 10),
+  (2, 2, 'OPERATOR_CONSUMPTION', '消费能力特征组', 'monthly_fee,package_type', '月套餐消费与套餐类型反映用户消费能力和支付能力。', 'B组', '银行特征 + 消费能力特征，验证消费能力信息增益。', 20),
+  (3, 2, 'OPERATOR_STABILITY', '稳定性特征组', 'online_months,number_stability', '在网时长和号码稳定性反映用户身份稳定性与长期使用行为。', 'C组', '银行特征 + 稳定性特征，验证在网时长、号码稳定性贡献。', 30),
+  (4, 2, 'OPERATOR_PAYMENT_BEHAVIOR', '履约行为特征组', 'arrears_count,payment_delay_days', '欠费次数与缴费延迟天数反映通信账单履约习惯，与信用违约风险相关。', 'D组', '银行特征 + 欠费履约特征，验证履约行为对风险识别的贡献。', 40),
+  (5, 2, 'OPERATOR_ACTIVITY', '活跃度特征组', 'data_usage,call_duration,active_days', '流量、通话时长和活跃天数反映用户通信活跃程度与真实使用质量。', '扩展组', '用于进一步解释通信活跃度对模型效果的影响。', 50),
+  (6, 2, 'OPERATOR_ALL', '全部运营商特征组', 'monthly_fee,package_type,online_months,number_stability,arrears_count,payment_delay_days,data_usage,call_duration,active_days', '汇总运营商消费能力、稳定性、履约行为和活跃度特征，形成联邦联合模型完整特征空间。', 'E组', '银行特征 + 全部运营商特征，作为联邦联合模型完整实验。', 60);
+
+insert ignore into algorithm_template(id, algorithm_code, algorithm_name, federated_type, task_type, need_psi, need_label_owner, support_multi_host, default_params, default_metrics, status) values
+  (1, 'HETERO_LR', 'Hetero Logistic Regression', 'VERTICAL', 'BINARY_CLASSIFICATION', 1, 1, 1, json_object('max_iter',30,'learning_rate',0.05,'batch_size',64), 'AUC,KS,Recall,Precision,F1,Loss', 'ENABLED'),
+  (2, 'HETERO_SECUREBOOST', 'Hetero SecureBoost', 'VERTICAL', 'BINARY_CLASSIFICATION', 1, 1, 1, json_object('num_trees',50,'max_depth',4,'learning_rate',0.1), 'AUC,KS,Recall,Precision,F1,PR-AUC,Recall@TopK', 'ENABLED'),
+  (3, 'HOMO_LR', 'Homo Logistic Regression', 'HORIZONTAL', 'BINARY_CLASSIFICATION', 0, 1, 1, json_object('max_iter',30,'learning_rate',0.05), 'AUC,Recall,F1,Loss', 'RESERVED'),
+  (4, 'HETERO_LINEAR_REGRESSION', 'Hetero Linear Regression', 'VERTICAL', 'REGRESSION', 1, 1, 1, json_object('max_iter',30,'learning_rate',0.05), 'MAE,MSE,RMSE,R2,Loss', 'RESERVED');
+
+insert ignore into scenario_template(id, scenario_code, scenario_name, industry, task_type, label_definition, recommended_algorithm, recommended_metrics, description, status) values
+  (1, 'CREDIT_DEFAULT_RISK', '信用违约风险预测', '金融风控', 'BINARY_CLASSIFICATION', '是否发生贷款逾期或违约', 'HETERO_LR,HETERO_SECUREBOOST', 'AUC,KS,Recall,Precision,F1,Loss', '银行与运营商在原始数据不出域条件下联合预测信用违约风险。', 'ENABLED'),
+  (2, 'FRAUD_DETECTION', '反欺诈识别', '金融安全', 'BINARY_CLASSIFICATION', '是否为欺诈交易或欺诈申请', 'HETERO_SECUREBOOST,HETERO_LR', 'Precision,Recall,F1,AUC,KS,PR-AUC', '融合账户、交易、通信行为识别欺诈风险。', 'RESERVED'),
+  (3, 'CUSTOMER_CHURN', '客户流失预测', '运营商', 'BINARY_CLASSIFICATION', '是否在观察窗口内流失', 'HETERO_LR,HETERO_SECUREBOOST', 'AUC,Recall,F1,Loss', '结合通信行为和平台活跃特征预测客户流失概率。', 'RESERVED'),
+  (4, 'MARKETING_CONVERSION', '营销转化预测', '精准营销', 'BINARY_CLASSIFICATION', '是否响应营销活动或完成转化', 'HETERO_SECUREBOOST', 'AUC,Precision,Recall,Recall@TopK', '通过多方特征提升高潜客识别能力。', 'RESERVED'),
+  (5, 'CREDIT_LIMIT_REGRESSION', '信贷额度预测', '金融风控', 'REGRESSION', '可授信额度或额度调整值', 'HETERO_LINEAR_REGRESSION,SECUREBOOST_REGRESSION', 'MAE,MSE,RMSE,R2,Loss', '扩展连续值预测能力，使平台不局限于二分类任务。', 'RESERVED');
+
 insert ignore into business_scenario_template(id, scenario_code, scenario_name, participant_types, data_distribution, label_owner, recommended_federated_type, recommended_algorithms, recommended_metrics, need_psi, business_goal, sort_no) values
   (1, 'BANK_OPERATOR_CREDIT_RISK', '银行与运营商信用风险预测', '银行机构,运营商机构', 'VERTICAL', '银行机构', '纵向联邦学习', 'PSI_INTERSECTION,HETERO_LR,HETERO_SECUREBOOST', 'Accuracy,Precision,Recall,F1,AUC,KS,Loss', 1, '在原始数据不出域前提下融合金融信用特征与通信行为特征，预测贷款逾期风险。', 10),
   (2, 'BANK_PAY_OPERATOR_FRAUD', '银行、支付平台与运营商反欺诈识别', '银行机构,支付平台,运营商机构', 'VERTICAL', '银行或支付平台', '纵向联邦学习', 'PSI_INTERSECTION,HETERO_SECUREBOOST,HETERO_LR', 'Precision,Recall,F1,AUC,KS', 1, '融合交易、账户、通信行为特征识别欺诈交易或异常申请。', 20),

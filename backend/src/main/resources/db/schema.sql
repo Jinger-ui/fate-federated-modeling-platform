@@ -247,6 +247,63 @@ create table if not exists risk_threshold_strategy (
   unique key uk_threshold_strategy_code (strategy_code)
 );
 
+create table if not exists experiment_design_template (
+  id bigint primary key auto_increment,
+  experiment_code varchar(32) not null,
+  experiment_name varchar(128) not null,
+  data_scope varchar(255) not null,
+  algorithm_plan varchar(255) not null,
+  experiment_purpose varchar(500) not null,
+  baseline_flag tinyint not null default 0,
+  core_flag tinyint not null default 1,
+  sort_no int not null default 0,
+  enabled_flag tinyint not null default 1,
+  unique key uk_experiment_design_code (experiment_code)
+);
+
+create table if not exists feature_group (
+  id bigint primary key auto_increment,
+  dataset_id bigint,
+  group_code varchar(64) not null,
+  group_name varchar(128) not null,
+  feature_columns varchar(500) not null,
+  business_meaning varchar(500) not null,
+  ablation_group varchar(32),
+  ablation_purpose varchar(500),
+  sort_no int not null default 0,
+  enabled_flag tinyint not null default 1,
+  unique key uk_feature_group_code (group_code)
+);
+
+create table if not exists algorithm_template (
+  id bigint primary key auto_increment,
+  algorithm_code varchar(64) not null,
+  algorithm_name varchar(128) not null,
+  federated_type varchar(64) not null,
+  task_type varchar(64) not null,
+  need_psi tinyint not null default 1,
+  need_label_owner tinyint not null default 1,
+  support_multi_host tinyint not null default 0,
+  default_params json,
+  default_metrics varchar(255),
+  status varchar(32) not null default 'ENABLED',
+  unique key uk_algorithm_template_code (algorithm_code)
+);
+
+create table if not exists scenario_template (
+  id bigint primary key auto_increment,
+  scenario_code varchar(64) not null,
+  scenario_name varchar(128) not null,
+  industry varchar(64) not null,
+  task_type varchar(64) not null,
+  label_definition varchar(255) not null,
+  recommended_algorithm varchar(255) not null,
+  recommended_metrics varchar(255) not null,
+  description varchar(500) not null,
+  status varchar(32) not null default 'ENABLED',
+  unique key uk_scenario_template_code_v2 (scenario_code)
+);
+
 create table if not exists business_scenario_template (
   id bigint primary key auto_increment,
   scenario_code varchar(64) not null,
