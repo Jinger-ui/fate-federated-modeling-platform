@@ -7,6 +7,7 @@ import Orgs from '../views/Orgs.vue'
 import Assets from '../views/Assets.vue'
 import PsiTasks from '../views/PsiTasks.vue'
 import FederatedTasks from '../views/FederatedTasks.vue'
+import FateEngine from '../views/FateEngine.vue'
 import Reports from '../views/Reports.vue'
 import Audit from '../views/Audit.vue'
 
@@ -24,6 +25,7 @@ const router = createRouter({
         { path: 'assets', component: Assets, meta: { title: '数据资产' } },
         { path: 'psi', component: PsiTasks, meta: { title: '样本对齐' } },
         { path: 'tasks', component: FederatedTasks, meta: { title: '联邦建模' } },
+        { path: 'fate-engine', component: FateEngine, meta: { title: 'FATE 引擎与算法体系' } },
         { path: 'reports', component: Reports, meta: { title: '模型评估' } },
         { path: 'audit', component: Audit, meta: { title: '审计日志' } }
       ]

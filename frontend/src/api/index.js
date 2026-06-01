@@ -31,6 +31,14 @@ export const taskApi = {
   runtime: (id) => http.get(`/federated/tasks/${id}/runtime`)
 }
 
+export const fateEngineApi = {
+  components: () => http.get('/fate/jobs/engine/components'),
+  algorithms: (params) => http.get('/fate/jobs/algorithms', { params }),
+  scenarios: () => http.get('/fate/jobs/scenario-templates'),
+  rules: () => http.get('/fate/jobs/recommend-rules'),
+  recommend: (data) => http.post('/fate/jobs/recommend', data)
+}
+
 export const reportApi = {
   list: () => http.get('/reports'),
   compare: () => http.get('/reports/compare'),

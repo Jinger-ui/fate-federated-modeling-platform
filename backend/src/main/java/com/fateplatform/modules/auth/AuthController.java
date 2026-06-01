@@ -64,6 +64,7 @@ public class AuthController {
                 Map.of("path", "/assets", "title", "数据资产", "icon", "Coin"),
                 Map.of("path", "/psi", "title", "样本对齐", "icon", "Connection"),
                 Map.of("path", "/tasks", "title", "联邦建模", "icon", "Cpu"),
+                Map.of("path", "/fate-engine", "title", "FATE 引擎", "icon", "Operation"),
                 Map.of("path", "/reports", "title", "模型评估", "icon", "TrendCharts"),
                 Map.of("path", "/audit", "title", "审计日志", "icon", "DocumentChecked")
         ));

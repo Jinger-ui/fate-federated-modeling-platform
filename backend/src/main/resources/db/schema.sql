@@ -172,6 +172,68 @@ create table if not exists fate_job_mapping (
   unique key uk_fate_external_job (external_job_id)
 );
 
+create table if not exists fate_engine_component (
+  id bigint primary key auto_increment,
+  component_code varchar(64) not null,
+  component_name varchar(128) not null,
+  layer_type varchar(64) not null,
+  capability varchar(500) not null,
+  implementation_ref varchar(255),
+  enabled_flag tinyint not null default 1,
+  sort_no int not null default 0,
+  unique key uk_engine_component_code (component_code)
+);
+
+create table if not exists federated_algorithm_template (
+  id bigint primary key auto_increment,
+  algorithm_code varchar(64) not null,
+  algorithm_name varchar(128) not null,
+  algorithm_category varchar(64) not null,
+  fate_component varchar(128),
+  federated_type varchar(64) not null,
+  task_target varchar(64) not null,
+  explainability_level varchar(32) not null,
+  nonlinear_support tinyint not null default 0,
+  need_psi tinyint not null default 1,
+  metrics varchar(255),
+  applicable_scenarios varchar(500),
+  extension_flag tinyint not null default 0,
+  default_params json,
+  enabled_flag tinyint not null default 1,
+  sort_no int not null default 0,
+  unique key uk_algorithm_template_code (algorithm_code),
+  key idx_algorithm_category (algorithm_category)
+);
+
+create table if not exists business_scenario_template (
+  id bigint primary key auto_increment,
+  scenario_code varchar(64) not null,
+  scenario_name varchar(128) not null,
+  participant_types varchar(255) not null,
+  data_distribution varchar(64) not null,
+  label_owner varchar(128) not null,
+  recommended_federated_type varchar(64) not null,
+  recommended_algorithms varchar(255) not null,
+  recommended_metrics varchar(255) not null,
+  need_psi tinyint not null default 1,
+  business_goal varchar(500) not null,
+  enabled_flag tinyint not null default 1,
+  sort_no int not null default 0,
+  unique key uk_scenario_template_code (scenario_code)
+);
+
+create table if not exists algorithm_recommend_rule (
+  id bigint primary key auto_increment,
+  rule_code varchar(64) not null,
+  condition_desc varchar(500) not null,
+  recommended_type varchar(64) not null,
+  recommended_algorithm varchar(128) not null,
+  reason varchar(500) not null,
+  priority int not null default 0,
+  enabled_flag tinyint not null default 1,
+  unique key uk_algorithm_rule_code (rule_code)
+);
+
 create table if not exists task_runtime_log (
   id bigint primary key auto_increment,
   task_id bigint not null,

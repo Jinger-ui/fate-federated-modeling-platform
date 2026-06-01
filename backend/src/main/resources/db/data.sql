@@ -133,3 +133,39 @@ insert ignore into model_curve_data(id, report_id, curve_type, curve_json) value
   (102, 103, 'LOSS', '[{"x":1,"y":0.61},{"x":5,"y":0.44},{"x":10,"y":0.36},{"x":20,"y":0.324}]'),
   (103, 104, 'ROC', '[{"x":0,"y":0},{"x":0.06,"y":0.46},{"x":0.18,"y":0.74},{"x":0.38,"y":0.9},{"x":1,"y":1}]'),
   (104, 104, 'LOSS', '[{"x":1,"y":0.58},{"x":5,"y":0.39},{"x":10,"y":0.32},{"x":20,"y":0.298}]');
+
+insert ignore into fate_engine_component(id, component_code, component_name, layer_type, capability, implementation_ref, sort_no) values
+  (1, 'FATE_CORE', 'FATE Core', 'ENGINE', '提供联邦学习算法组件、隐私计算协议和多方协同计算能力，是平台底层联邦计算内核。', 'FATE Standalone / Cluster', 10),
+  (2, 'FATE_FLOW', 'FATE Flow', 'ORCHESTRATION', '负责任务提交、调度、状态查询、资源协调、日志追踪、模型管理和指标查询。', 'Flow API / flow command', 20),
+  (3, 'FATE_PIPELINE', 'FATE Pipeline', 'DAG_BUILDER', '构建联邦学习任务 DAG，串联 Reader、Intersection、Transform、Train、Evaluation 等组件。', 'pipeline Python SDK', 30),
+  (4, 'ALGORITHM_ADAPTER', 'Algorithm Adapter', 'PLATFORM_ADAPTER', '根据业务场景、数据分布和任务目标选择 FATE 算法组件并生成任务参数。', 'Spring Boot service adapter', 40),
+  (5, 'METRIC_PARSER', 'Metric Parser', 'PLATFORM_ADAPTER', '解析 FATE 输出的 Loss、AUC、KS、Accuracy、Precision、Recall、F1 等指标并回写 MySQL。', 'FateFlow metrics parser', 50),
+  (6, 'SCENARIO_TEMPLATE', 'Scenario Template', 'PLATFORM_TEMPLATE', '沉淀信用风险、反欺诈、客户流失、精准营销、医疗预测、保险理赔等典型联邦业务模板。', 'MySQL template metadata', 60);
+
+insert ignore into federated_algorithm_template(id, algorithm_code, algorithm_name, algorithm_category, fate_component, federated_type, task_target, explainability_level, nonlinear_support, need_psi, metrics, applicable_scenarios, extension_flag, default_params, sort_no) values
+  (1, 'PSI_INTERSECTION', 'PSI / Intersection 样本对齐', 'SAMPLE_ALIGNMENT', 'Intersection', 'VERTICAL', 'ID_ALIGNMENT', 'MEDIUM', 0, 0, 'intersect_count,match_rate', '银行与运营商共同用户对齐；多方共同样本识别', 0, json_object('intersect_method','rsa','sync_intersect_ids',false), 10),
+  (2, 'HETERO_LR', 'Hetero Logistic Regression', 'VERTICAL_CLASSIFICATION', 'HeteroLR', 'VERTICAL', 'BINARY_CLASSIFICATION', 'HIGH', 0, 1, 'Accuracy,Precision,Recall,F1,AUC,KS,Loss', '信用风险预测；贷款违约预测；反欺诈识别；风控评分', 0, json_object('max_iter',30,'learning_rate',0.05,'batch_size',64), 20),
+  (3, 'HETERO_SECUREBOOST', 'Hetero SecureBoost', 'VERTICAL_CLASSIFICATION', 'HeteroSecureBoost', 'VERTICAL', 'BINARY_CLASSIFICATION', 'MEDIUM', 1, 1, 'Accuracy,Precision,Recall,F1,AUC,KS,Loss', '信用风险预测；反欺诈识别；营销转化预测；复杂特征交互建模', 0, json_object('num_trees',50,'max_depth',4,'learning_rate',0.1), 30),
+  (4, 'HOMO_LR', 'Homo Logistic Regression', 'HORIZONTAL_CLASSIFICATION', 'HomoLR', 'HORIZONTAL', 'BINARY_CLASSIFICATION', 'HIGH', 0, 0, 'Accuracy,Precision,Recall,F1,AUC,Loss', '多家银行拥有相同字段但不同客户样本', 1, json_object('max_iter',30,'learning_rate',0.05), 40),
+  (5, 'HOMO_SECUREBOOST', 'Homo SecureBoost', 'HORIZONTAL_CLASSIFICATION', 'HomoSecureBoost', 'HORIZONTAL', 'BINARY_CLASSIFICATION', 'MEDIUM', 1, 0, 'Accuracy,Precision,Recall,F1,AUC,Loss', '同构特征的跨机构分类建模', 1, json_object('num_trees',50,'max_depth',4), 50),
+  (6, 'HETERO_LINEAR_REGRESSION', 'Hetero Linear Regression', 'FEDERATED_REGRESSION', 'HeteroLinR', 'VERTICAL', 'REGRESSION', 'HIGH', 0, 1, 'MAE,MSE,RMSE,R2,Loss', '用户消费金额预测；信贷额度预测；评分预测', 1, json_object('max_iter',30,'learning_rate',0.05), 60),
+  (7, 'SECUREBOOST_REGRESSION', 'SecureBoost Regression', 'FEDERATED_REGRESSION', 'HeteroSecureBoost', 'VERTICAL', 'REGRESSION', 'MEDIUM', 1, 1, 'MAE,MSE,RMSE,R2,Loss', '额度预测；收入预测；复杂非线性回归任务', 1, json_object('objective','regression','num_trees',50,'max_depth',4), 70),
+  (8, 'POISSON_REGRESSION', 'Poisson Regression', 'FEDERATED_REGRESSION', 'PoissonRegression', 'VERTICAL', 'COUNT_REGRESSION', 'HIGH', 0, 1, 'MAE,MSE,Deviance,Loss', '次数预测；事件频次预测；理赔次数预测', 1, json_object('max_iter',30,'learning_rate',0.05), 80),
+  (9, 'FEDERATED_NN', 'Federated Neural Network', 'FEDERATED_DEEP_LEARNING', 'HeteroNN/HomoNN', 'MIXED', 'DEEP_LEARNING', 'LOW', 1, 0, 'Accuracy,AUC,Loss', '复杂特征表达；图像文本多模态；深度模型扩展方向', 1, json_object('epochs',10,'batch_size',128), 90),
+  (10, 'FEDERATED_TRANSFER_LEARNING', 'Federated Transfer Learning', 'TRANSFER_LEARNING', 'FTL', 'TRANSFER', 'TRANSFER_LEARNING', 'LOW', 1, 0, 'Accuracy,AUC,Loss', '样本重叠较少但存在知识迁移需求的场景', 1, json_object('epochs',10,'overlap_ratio','low'), 100);
+
+insert ignore into business_scenario_template(id, scenario_code, scenario_name, participant_types, data_distribution, label_owner, recommended_federated_type, recommended_algorithms, recommended_metrics, need_psi, business_goal, sort_no) values
+  (1, 'BANK_OPERATOR_CREDIT_RISK', '银行与运营商信用风险预测', '银行机构,运营商机构', 'VERTICAL', '银行机构', '纵向联邦学习', 'PSI_INTERSECTION,HETERO_LR,HETERO_SECUREBOOST', 'Accuracy,Precision,Recall,F1,AUC,KS,Loss', 1, '在原始数据不出域前提下融合金融信用特征与通信行为特征，预测贷款逾期风险。', 10),
+  (2, 'BANK_PAY_OPERATOR_FRAUD', '银行、支付平台与运营商反欺诈识别', '银行机构,支付平台,运营商机构', 'VERTICAL', '银行或支付平台', '纵向联邦学习', 'PSI_INTERSECTION,HETERO_SECUREBOOST,HETERO_LR', 'Precision,Recall,F1,AUC,KS', 1, '融合交易、账户、通信行为特征识别欺诈交易或异常申请。', 20),
+  (3, 'OPERATOR_INTERNET_CHURN', '运营商与互联网平台客户流失预测', '运营商机构,互联网平台', 'VERTICAL', '运营商机构', '纵向联邦学习', 'PSI_INTERSECTION,HETERO_LR,HETERO_SECUREBOOST', 'Accuracy,Recall,F1,AUC,Loss', 1, '通过通信行为和互联网活跃特征预测客户流失概率，支撑精细化运营。', 30),
+  (4, 'MULTI_BANK_HOMO_RISK', '多银行同构信用风险联合建模', '商业银行,区域银行,消费金融机构', 'HORIZONTAL', '各参与银行', '横向联邦学习', 'HOMO_LR,HOMO_SECUREBOOST', 'Accuracy,Precision,Recall,F1,AUC,Loss', 0, '多家银行字段结构一致但样本不同，通过横向联邦提升模型泛化能力。', 40);
+
+insert ignore into algorithm_recommend_rule(id, rule_code, condition_desc, recommended_type, recommended_algorithm, reason, priority) values
+  (1, 'RULE_VERTICAL_FEATURE_SPLIT', '多方拥有相同用户但不同特征', 'VERTICAL', 'HETERO_LR,HETERO_SECUREBOOST', '该数据分布符合纵向联邦学习，需先进行 PSI 样本对齐。', 100),
+  (2, 'RULE_HORIZONTAL_SAMPLE_SPLIT', '多方拥有相同字段但不同样本', 'HORIZONTAL', 'HOMO_LR,HOMO_SECUREBOOST', '字段结构一致且样本不同，适合横向联邦训练统一模型。', 90),
+  (3, 'RULE_BINARY_TARGET', '任务目标为是否违约、是否欺诈、是否流失', 'CLASSIFICATION', 'HETERO_LR,HETERO_SECUREBOOST', '二分类风控任务可优先选择逻辑回归基线和 SecureBoost 效果模型。', 80),
+  (4, 'RULE_CONTINUOUS_TARGET', '任务目标为金额、额度、评分等连续值', 'REGRESSION', 'HETERO_LINEAR_REGRESSION,SECUREBOOST_REGRESSION', '连续值预测适合联邦回归算法或树模型回归目标。', 70),
+  (5, 'RULE_COUNT_TARGET', '任务目标为次数预测', 'COUNT_REGRESSION', 'POISSON_REGRESSION,SECUREBOOST_REGRESSION', '计数型目标可考虑 Poisson Regression 或回归类树模型。', 60),
+  (6, 'RULE_NONLINEAR_FEATURES', '数据特征非线性强、特征交互复杂', 'NONLINEAR_MODEL', 'HETERO_SECUREBOOST', 'SecureBoost 更适合处理非线性和复杂特征交互。', 50),
+  (7, 'RULE_EXPLAINABILITY', '业务需要较强可解释性', 'EXPLAINABLE_MODEL', 'HETERO_LR', '逻辑回归参数可解释性更强，适合作为风控评分基线。', 40),
+  (8, 'RULE_LOW_OVERLAP_TRANSFER', '样本重叠较少但存在知识迁移需求', 'TRANSFER_LEARNING', 'FEDERATED_TRANSFER_LEARNING', '可作为后续扩展方向，使用联邦迁移学习缓解样本重叠不足。', 30);

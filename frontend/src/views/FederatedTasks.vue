@@ -39,7 +39,16 @@
       <el-form :model="form" label-width="110px">
         <el-form-item label="任务名称"><el-input v-model="form.taskName" /></el-form-item>
         <el-form-item label="任务模式"><el-select v-model="form.taskMode"><el-option label="联邦联合训练" value="FEDERATED" /><el-option label="银行单方训练" value="SINGLE_BANK" /><el-option label="运营商单方训练" value="SINGLE_OPERATOR" /></el-select></el-form-item>
-        <el-form-item label="算法"><el-select v-model="form.algorithmType"><el-option label="Hetero LR" value="HETERO_LR" /><el-option label="Hetero SecureBoost" value="HETERO_SECUREBOOST" /></el-select></el-form-item>
+        <el-form-item label="算法">
+          <el-select v-model="form.algorithmType" filterable>
+            <el-option
+              v-for="algo in algorithms"
+              :key="algo.algorithm_code"
+              :label="algo.algorithm_name"
+              :value="algo.algorithm_code"
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item label="PSI任务ID"><el-input-number v-model="form.psiTaskId" :min="1" /></el-form-item>
         <el-form-item label="执行模式"><el-select v-model="form.submitType"><el-option label="MOCK" value="MOCK" /><el-option label="FATE Pipeline" value="FATE_PIPELINE" /><el-option label="FATE Flow API" value="FATE_FLOW_API" /></el-select></el-form-item>
       </el-form>
@@ -52,9 +61,10 @@
 import { ElMessage } from 'element-plus'
 import { onMounted, reactive, ref } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
-import { taskApi } from '../api'
+import { fateEngineApi, taskApi } from '../api'
 
 const rows = ref([])
+const algorithms = ref([])
 const dialog = ref(false)
 const drawer = ref(false)
 const runtime = ref({})
@@ -75,7 +85,10 @@ function tagType(status) {
   return status === 'SUCCESS' ? 'success' : status === 'FAILED' ? 'danger' : status === 'RUNNING' ? 'warning' : 'info'
 }
 
-async function load() { rows.value = (await taskApi.list()).data }
+async function load() {
+  rows.value = (await taskApi.list()).data
+  algorithms.value = (await fateEngineApi.algorithms()).data
+}
 async function save() { await taskApi.create(form); dialog.value = false; await load() }
 async function submit(row) { await taskApi.submit(row.id); ElMessage.success('任务已执行'); await load() }
 async function viewRuntime(row) { runtime.value = (await taskApi.runtime(row.id)).data; drawer.value = true }

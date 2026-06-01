@@ -45,6 +45,7 @@ const menus = computed(() => user.menus.length ? user.menus : [
   { path: '/assets', title: '数据资产', icon: 'Coin' },
   { path: '/psi', title: '样本对齐', icon: 'Connection' },
   { path: '/tasks', title: '联邦建模', icon: 'Cpu' },
+  { path: '/fate-engine', title: 'FATE 引擎', icon: 'Operation' },
   { path: '/reports', title: '模型评估', icon: 'TrendCharts' },
   { path: '/audit', title: '审计日志', icon: 'DocumentChecked' }
 ])
