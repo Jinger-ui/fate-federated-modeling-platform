@@ -144,8 +144,8 @@ insert ignore into fate_engine_component(id, component_code, component_name, lay
 
 insert ignore into federated_algorithm_template(id, algorithm_code, algorithm_name, algorithm_category, fate_component, federated_type, task_target, explainability_level, nonlinear_support, need_psi, metrics, applicable_scenarios, extension_flag, default_params, sort_no) values
   (1, 'PSI_INTERSECTION', 'PSI / Intersection 样本对齐', 'SAMPLE_ALIGNMENT', 'Intersection', 'VERTICAL', 'ID_ALIGNMENT', 'MEDIUM', 0, 0, 'intersect_count,match_rate', '银行与运营商共同用户对齐；多方共同样本识别', 0, json_object('intersect_method','rsa','sync_intersect_ids',false), 10),
-  (2, 'HETERO_LR', 'Hetero Logistic Regression', 'VERTICAL_CLASSIFICATION', 'HeteroLR', 'VERTICAL', 'BINARY_CLASSIFICATION', 'HIGH', 0, 1, 'Accuracy,Precision,Recall,F1,AUC,KS,Loss', '信用风险预测；贷款违约预测；反欺诈识别；风控评分', 0, json_object('max_iter',30,'learning_rate',0.05,'batch_size',64), 20),
-  (3, 'HETERO_SECUREBOOST', 'Hetero SecureBoost', 'VERTICAL_CLASSIFICATION', 'HeteroSecureBoost', 'VERTICAL', 'BINARY_CLASSIFICATION', 'MEDIUM', 1, 1, 'Accuracy,Precision,Recall,F1,AUC,KS,Loss', '信用风险预测；反欺诈识别；营销转化预测；复杂特征交互建模', 0, json_object('num_trees',50,'max_depth',4,'learning_rate',0.1), 30),
+  (2, 'HETERO_LR', 'Hetero Logistic Regression（可解释基线模型）', 'VERTICAL_CLASSIFICATION', 'HeteroLR', 'VERTICAL', 'BINARY_CLASSIFICATION', 'HIGH', 0, 1, 'AUC,KS,Recall,Precision,F1,Loss,Accuracy', '信用风险预测；贷款违约预测；输出风险概率；分析银行与运营商特征权重；作为 SecureBoost 对照组', 0, json_object('max_iter',30,'learning_rate',0.05,'batch_size',64), 20),
+  (3, 'HETERO_SECUREBOOST', 'Hetero SecureBoost（效果增强模型）', 'VERTICAL_CLASSIFICATION', 'HeteroSecureBoost', 'VERTICAL', 'BINARY_CLASSIFICATION', 'MEDIUM', 1, 1, 'AUC,KS,Recall,Precision,F1,PR-AUC,Recall@TopK,Loss', '信用风险预测；反欺诈识别；营销转化预测；处理非线性特征关系和复杂特征交互', 0, json_object('num_trees',50,'max_depth',4,'learning_rate',0.1), 30),
   (4, 'HOMO_LR', 'Homo Logistic Regression', 'HORIZONTAL_CLASSIFICATION', 'HomoLR', 'HORIZONTAL', 'BINARY_CLASSIFICATION', 'HIGH', 0, 0, 'Accuracy,Precision,Recall,F1,AUC,Loss', '多家银行拥有相同字段但不同客户样本', 1, json_object('max_iter',30,'learning_rate',0.05), 40),
   (5, 'HOMO_SECUREBOOST', 'Homo SecureBoost', 'HORIZONTAL_CLASSIFICATION', 'HomoSecureBoost', 'HORIZONTAL', 'BINARY_CLASSIFICATION', 'MEDIUM', 1, 0, 'Accuracy,Precision,Recall,F1,AUC,Loss', '同构特征的跨机构分类建模', 1, json_object('num_trees',50,'max_depth',4), 50),
   (6, 'HETERO_LINEAR_REGRESSION', 'Hetero Linear Regression', 'FEDERATED_REGRESSION', 'HeteroLinR', 'VERTICAL', 'REGRESSION', 'HIGH', 0, 1, 'MAE,MSE,RMSE,R2,Loss', '用户消费金额预测；信贷额度预测；评分预测', 1, json_object('max_iter',30,'learning_rate',0.05), 60),
@@ -153,6 +153,38 @@ insert ignore into federated_algorithm_template(id, algorithm_code, algorithm_na
   (8, 'POISSON_REGRESSION', 'Poisson Regression', 'FEDERATED_REGRESSION', 'PoissonRegression', 'VERTICAL', 'COUNT_REGRESSION', 'HIGH', 0, 1, 'MAE,MSE,Deviance,Loss', '次数预测；事件频次预测；理赔次数预测', 1, json_object('max_iter',30,'learning_rate',0.05), 80),
   (9, 'FEDERATED_NN', 'Federated Neural Network', 'FEDERATED_DEEP_LEARNING', 'HeteroNN/HomoNN', 'MIXED', 'DEEP_LEARNING', 'LOW', 1, 0, 'Accuracy,AUC,Loss', '复杂特征表达；图像文本多模态；深度模型扩展方向', 1, json_object('epochs',10,'batch_size',128), 90),
   (10, 'FEDERATED_TRANSFER_LEARNING', 'Federated Transfer Learning', 'TRANSFER_LEARNING', 'FTL', 'TRANSFER', 'TRANSFER_LEARNING', 'LOW', 1, 0, 'Accuracy,AUC,Loss', '样本重叠较少但存在知识迁移需求的场景', 1, json_object('epochs',10,'overlap_ratio','low'), 100);
+
+update federated_algorithm_template
+set algorithm_name='Hetero Logistic Regression（可解释基线模型）',
+    metrics='AUC,KS,Recall,Precision,F1,Loss,Accuracy',
+    applicable_scenarios='信用风险预测；贷款违约预测；输出风险概率；分析银行与运营商特征权重；作为 SecureBoost 对照组'
+where algorithm_code='HETERO_LR';
+
+update federated_algorithm_template
+set algorithm_name='Hetero SecureBoost（效果增强模型）',
+    metrics='AUC,KS,Recall,Precision,F1,PR-AUC,Recall@TopK,Loss',
+    applicable_scenarios='信用风险预测；反欺诈识别；营销转化预测；处理非线性特征关系和复杂特征交互'
+where algorithm_code='HETERO_SECUREBOOST';
+
+insert ignore into algorithm_experiment_layer(id, layer_code, layer_name, layer_level, model_family, algorithms, experiment_role, implementation_scope, comparison_value) values
+  (1, 'L1_SINGLE_BASELINE', '第一层：单方基线模型', 1, 'Single-party baseline', '银行单方 LR / XGBoost；运营商单方 LR / XGBoost', '建立单方模型效果下限，衡量银行特征与运营商特征各自的信息增益。', '核心实现', '作为联邦模型的对照组，形成“单方模型 vs 联邦模型”的基本实验结构。'),
+  (2, 'L2_VERTICAL_BASELINE', '第二层：纵向联邦基础模型', 2, 'Vertical federated linear model', 'PSI + Hetero Logistic Regression', '验证多方特征在原始数据不出域条件下联合训练的可行性，并提供可解释基线。', '核心实现', '输出风险概率和特征权重，可解释性强，适合作为论文基线算法。'),
+  (3, 'L3_VERTICAL_ENHANCED', '第三层：纵向联邦增强模型', 3, 'Vertical federated tree model', 'PSI + Hetero SecureBoost', '处理非线性特征关系与复杂特征交互，提升风控表格数据建模效果。', '核心实现', '与 Hetero LR 对比，体现树模型在 AUC、KS、Recall 等指标上的增强能力。'),
+  (4, 'L4_EXTENSION_RESERVED', '第四层：扩展预留模型', 4, 'Platform extension algorithms', 'Homo LR / Homo SecureBoost / Hetero Linear Regression / Federated NN / Transfer Learning', '支撑横向联邦、回归任务、深度学习和迁移学习等后续平台扩展方向。', '扩展预留', '展示平台算法扩展性，论文中作为展望与系统可演进能力。');
+
+insert ignore into feature_engineering_step(id, step_code, step_name, step_order, stage_type, target_fields, method_desc, fate_component_ref, implementation_scope) values
+  (1, 'MISSING_VALUE_FILL', '缺失值填充', 10, 'PREPROCESS', 'income_level,monthly_fee,data_usage,call_duration', '对数值字段采用均值/中位数填充，对类别字段采用 unknown 类别填充，降低样本丢失。', 'DataTransform / local preprocessing', '模拟数据与预处理阶段实现'),
+  (2, 'OUTLIER_CLIP', '异常值处理', 20, 'PREPROCESS', 'monthly_fee,data_usage,call_duration,loan_amount', '使用分位数截断或业务阈值裁剪异常消费、流量、通话和贷款金额。', 'DataTransform / local preprocessing', '模拟数据与预处理阶段实现'),
+  (3, 'CATEGORY_ENCODING', '类别变量编码', 30, 'FEATURE_TRANSFORM', 'package_type,income_level,customer_level', '对套餐类型、收入等级、客户等级进行 One-Hot 或序号编码。', 'DataTransform', '平台参数预留'),
+  (4, 'NUMERIC_STANDARDIZE', '数值特征标准化', 40, 'FEATURE_TRANSFORM', 'monthly_fee,data_usage,call_duration,credit_score', '对消费、流量、通话时长、信用评分进行标准化，适配 LR 梯度训练。', 'Scale / DataTransform', 'Hetero LR 推荐启用'),
+  (5, 'RISK_FEATURE_BUILD', '风险特征构造', 50, 'FEATURE_CONSTRUCTION', 'arrears_count,online_months', '构造 arrears_count / online_months 等风险强度特征，刻画单位在网时长欠费频率。', 'local feature script', '模拟数据与预处理阶段实现'),
+  (6, 'FEATURE_BINNING', '风控分箱特征', 60, 'FEATURE_BINNING', 'credit_score,online_months,loan_amount', '对信用评分、在网时长、贷款金额分段，增强风控规则解释性与稳定性。', 'FeatureBinning', '平台参数预留'),
+  (7, 'IMBALANCE_HANDLING', '类别不平衡处理', 70, 'TRAINING_STRATEGY', 'is_overdue,label', '高风险用户通常为少数类，训练与评估时弱化 Accuracy 依赖，重点关注 AUC、KS、Recall、F1、PR-AUC。', 'Evaluation / sample weight', '实验评价重点实现');
+
+insert ignore into risk_threshold_strategy(id, strategy_code, strategy_name, min_probability, max_probability, risk_level, risk_score_range, business_action, review_policy) values
+  (1, 'LOW_RISK_PASS', '低风险通过策略', 0.0000, 0.3000, 'LOW', '700-850', '可通过', '自动审批或低强度审核'),
+  (2, 'MEDIUM_RISK_REVIEW', '中风险复核策略', 0.3000, 0.6000, 'MEDIUM', '550-699', '人工复核', '结合征信、收入与通信稳定性进行补充审核'),
+  (3, 'HIGH_RISK_REJECT', '高风险重点审查策略', 0.6000, 1.0000, 'HIGH', '300-549', '拒绝或重点审查', '进入高风险名单，触发人工复审或拒绝授信');
 
 insert ignore into business_scenario_template(id, scenario_code, scenario_name, participant_types, data_distribution, label_owner, recommended_federated_type, recommended_algorithms, recommended_metrics, need_psi, business_goal, sort_no) values
   (1, 'BANK_OPERATOR_CREDIT_RISK', '银行与运营商信用风险预测', '银行机构,运营商机构', 'VERTICAL', '银行机构', '纵向联邦学习', 'PSI_INTERSECTION,HETERO_LR,HETERO_SECUREBOOST', 'Accuracy,Precision,Recall,F1,AUC,KS,Loss', 1, '在原始数据不出域前提下融合金融信用特征与通信行为特征，预测贷款逾期风险。', 10),

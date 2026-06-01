@@ -75,6 +75,30 @@ public class FateController {
         return ApiResponse.ok(jdbcTemplate.queryForList(sql.toString(), args.toArray()));
     }
 
+    @GetMapping("/algorithm-layers")
+    public ApiResponse<Object> algorithmLayers() {
+        return ApiResponse.ok(jdbcTemplate.queryForList("""
+                select * from algorithm_experiment_layer
+                where enabled_flag=1 order by layer_level, id
+                """));
+    }
+
+    @GetMapping("/feature-steps")
+    public ApiResponse<Object> featureSteps() {
+        return ApiResponse.ok(jdbcTemplate.queryForList("""
+                select * from feature_engineering_step
+                where enabled_flag=1 order by step_order, id
+                """));
+    }
+
+    @GetMapping("/risk-thresholds")
+    public ApiResponse<Object> riskThresholds() {
+        return ApiResponse.ok(jdbcTemplate.queryForList("""
+                select * from risk_threshold_strategy
+                where enabled_flag=1 order by min_probability, id
+                """));
+    }
+
     @GetMapping("/scenario-templates")
     public ApiResponse<Object> scenarioTemplates() {
         return ApiResponse.ok(jdbcTemplate.queryForList("""

@@ -43,6 +43,28 @@
 
     <div class="panel">
       <div class="toolbar">
+        <h3>四层算法梯度</h3>
+        <el-tag type="warning">单方模型 vs 联邦线性模型 vs 联邦树模型</el-tag>
+      </div>
+      <el-row :gutter="14">
+        <el-col v-for="item in layers" :key="item.layer_code" :xs="24" :md="12">
+          <div class="layer-card">
+            <div class="layer-index">Layer {{ item.layer_level }}</div>
+            <div class="scenario-title">{{ item.layer_name }}</div>
+            <p class="muted">{{ item.model_family }}</p>
+            <el-descriptions :column="1" size="small" border>
+              <el-descriptions-item label="算法组合">{{ item.algorithms }}</el-descriptions-item>
+              <el-descriptions-item label="实验定位">{{ item.experiment_role }}</el-descriptions-item>
+              <el-descriptions-item label="实现范围">{{ item.implementation_scope }}</el-descriptions-item>
+              <el-descriptions-item label="对比价值">{{ item.comparison_value }}</el-descriptions-item>
+            </el-descriptions>
+          </div>
+        </el-col>
+      </el-row>
+    </div>
+
+    <div class="panel">
+      <div class="toolbar">
         <h3>算法模板库</h3>
         <el-select v-model="category" clearable placeholder="按算法类型筛选" style="width: 260px" @change="loadAlgorithms">
           <el-option v-for="item in categories" :key="item" :label="item" :value="item" />
@@ -54,6 +76,7 @@
         <el-table-column prop="federated_type" label="联邦类型" width="120" />
         <el-table-column prop="task_target" label="任务目标" width="160" />
         <el-table-column prop="explainability_level" label="解释性" width="100" />
+        <el-table-column prop="metrics" label="重点指标" min-width="220" />
         <el-table-column label="PSI" width="80">
           <template #default="{ row }">
             <el-tag :type="row.need_psi ? 'warning' : 'info'">{{ row.need_psi ? '需要' : '不需要' }}</el-tag>
@@ -61,6 +84,54 @@
         </el-table-column>
         <el-table-column prop="applicable_scenarios" label="适用场景" min-width="260" />
       </el-table>
+    </div>
+
+    <div class="panel">
+      <div class="toolbar">
+        <h3>风控特征工程流水线</h3>
+        <el-tag>AUC + KS + Recall 优先</el-tag>
+      </div>
+      <el-timeline>
+        <el-timeline-item
+          v-for="item in featureSteps"
+          :key="item.step_code"
+          :timestamp="`${item.step_order}. ${item.stage_type}`"
+        >
+          <div class="step-card">
+            <strong>{{ item.step_name }}</strong>
+            <p>{{ item.method_desc }}</p>
+            <div class="tag-line">
+              <el-tag size="small" type="info">{{ item.target_fields }}</el-tag>
+              <el-tag v-if="item.fate_component_ref" size="small" type="success">{{ item.fate_component_ref }}</el-tag>
+              <el-tag v-if="item.implementation_scope" size="small" type="warning">{{ item.implementation_scope }}</el-tag>
+            </div>
+          </div>
+        </el-timeline-item>
+      </el-timeline>
+    </div>
+
+    <div class="panel">
+      <div class="toolbar">
+        <h3>模型输出到业务策略</h3>
+        <el-tag type="danger">违约概率 -> 风险等级 -> 审批动作</el-tag>
+      </div>
+      <el-table :data="riskThresholds" stripe empty-text="暂无风险阈值策略">
+        <el-table-column prop="strategy_name" label="策略" min-width="170" />
+        <el-table-column label="违约概率" width="150">
+          <template #default="{ row }">
+            {{ formatProbability(row.min_probability) }} ≤ p &lt; {{ formatProbability(row.max_probability) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="risk_level" label="风险等级" width="110" />
+        <el-table-column prop="risk_score_range" label="风险评分" width="120" />
+        <el-table-column prop="business_action" label="业务动作" width="140" />
+        <el-table-column prop="review_policy" label="复核策略" min-width="260" />
+      </el-table>
+      <el-alert class="mt" type="info" :closable="false" show-icon>
+        <template #title>
+          信用风险任务中，高风险用户通常是少数类，因此核心评价指标优先关注 AUC、KS、Recall、Precision、F1、PR-AUC 和 Recall@TopK，Accuracy 仅作为辅助参考。
+        </template>
+      </el-alert>
     </div>
 
     <div class="panel">
@@ -137,15 +208,21 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
 import { fateEngineApi } from '../api'
 import {
+  defaultAlgorithmLayers,
   defaultAlgorithms,
   defaultEngineComponents,
+  defaultFeatureSteps,
+  defaultRiskThresholds,
   defaultRules,
   defaultScenarios
 } from '../constants/fateTemplates'
 
 const components = ref([])
+const layers = ref([])
 const algorithms = ref([])
 const allAlgorithms = ref([])
+const featureSteps = ref([])
+const riskThresholds = ref([])
 const scenarios = ref([])
 const rules = ref([])
 const category = ref('')
@@ -162,7 +239,10 @@ const recommendForm = reactive({
 const categories = computed(() => [...new Set(allAlgorithms.value.map((item) => item.algorithm_category))])
 const metrics = computed(() => [
   { label: '引擎组件', value: components.value.length },
+  { label: '算法梯度', value: layers.value.length },
   { label: '算法模板', value: allAlgorithms.value.length },
+  { label: '特征工程', value: featureSteps.value.length },
+  { label: '风险策略', value: riskThresholds.value.length },
   { label: '场景模板', value: scenarios.value.length },
   { label: '推荐规则', value: rules.value.length }
 ])
@@ -197,28 +277,47 @@ async function recommend() {
 
 async function load() {
   usingFallback.value = false
-  const [componentRes, algorithmRes, scenarioRes, ruleRes] = await Promise.allSettled([
-    fateEngineApi.components(),
-    fateEngineApi.algorithms(),
-    fateEngineApi.scenarios(),
-    fateEngineApi.rules()
+  const [componentRes, layerRes, algorithmRes, featureRes, thresholdRes, scenarioRes, ruleRes] = await Promise.allSettled([
+    safeRequest('components'),
+    safeRequest('layers'),
+    safeRequest('algorithms'),
+    safeRequest('featureSteps'),
+    safeRequest('riskThresholds'),
+    safeRequest('scenarios'),
+    safeRequest('rules')
   ])
   components.value = valueOrFallback(componentRes, defaultEngineComponents)
+  layers.value = valueOrFallback(layerRes, defaultAlgorithmLayers)
   allAlgorithms.value = valueOrFallback(algorithmRes, defaultAlgorithms)
   algorithms.value = allAlgorithms.value
+  featureSteps.value = valueOrFallback(featureRes, defaultFeatureSteps)
+  riskThresholds.value = valueOrFallback(thresholdRes, defaultRiskThresholds)
   scenarios.value = valueOrFallback(scenarioRes, defaultScenarios)
   rules.value = valueOrFallback(ruleRes, defaultRules)
-  usingFallback.value = [componentRes, algorithmRes, scenarioRes, ruleRes].some((item) => item.status !== 'fulfilled')
+  usingFallback.value = [componentRes, layerRes, algorithmRes, featureRes, thresholdRes, scenarioRes, ruleRes].some((item) => item.status !== 'fulfilled')
     || !components.value.length
+    || !layers.value.length
     || !allAlgorithms.value.length
+    || !featureSteps.value.length
+    || !riskThresholds.value.length
     || !scenarios.value.length
     || !rules.value.length
   await recommend()
 }
 
+function safeRequest(methodName) {
+  return typeof fateEngineApi[methodName] === 'function'
+    ? fateEngineApi[methodName]()
+    : Promise.resolve({ data: [] })
+}
+
 function valueOrFallback(result, fallback) {
   const data = result.status === 'fulfilled' ? result.value.data : []
   return Array.isArray(data) && data.length ? data : fallback
+}
+
+function formatProbability(value) {
+  return Number(value || 0).toFixed(2)
 }
 
 onMounted(load)
@@ -270,6 +369,36 @@ onMounted(load)
   border: 1px solid #e5ebf4;
   border-radius: 10px;
   background: #fbfdff;
+}
+
+.layer-card,
+.step-card {
+  margin-bottom: 14px;
+  padding: 16px;
+  border: 1px solid #dbeafe;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.layer-index {
+  display: inline-flex;
+  margin-bottom: 8px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: #0369a1;
+  background: #e0f2fe;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.muted {
+  color: #68758a;
+}
+
+.step-card p {
+  margin: 8px 0;
+  color: #5b677a;
+  line-height: 1.6;
 }
 
 .scenario-title {

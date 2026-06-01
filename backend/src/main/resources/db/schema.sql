@@ -205,6 +205,48 @@ create table if not exists federated_algorithm_template (
   key idx_algorithm_category (algorithm_category)
 );
 
+create table if not exists algorithm_experiment_layer (
+  id bigint primary key auto_increment,
+  layer_code varchar(64) not null,
+  layer_name varchar(128) not null,
+  layer_level int not null,
+  model_family varchar(128) not null,
+  algorithms varchar(255) not null,
+  experiment_role varchar(255) not null,
+  implementation_scope varchar(64) not null,
+  comparison_value varchar(500) not null,
+  enabled_flag tinyint not null default 1,
+  unique key uk_algorithm_layer_code (layer_code)
+);
+
+create table if not exists feature_engineering_step (
+  id bigint primary key auto_increment,
+  step_code varchar(64) not null,
+  step_name varchar(128) not null,
+  step_order int not null,
+  stage_type varchar(64) not null,
+  target_fields varchar(255),
+  method_desc varchar(500) not null,
+  fate_component_ref varchar(128),
+  implementation_scope varchar(64) not null,
+  enabled_flag tinyint not null default 1,
+  unique key uk_feature_step_code (step_code)
+);
+
+create table if not exists risk_threshold_strategy (
+  id bigint primary key auto_increment,
+  strategy_code varchar(64) not null,
+  strategy_name varchar(128) not null,
+  min_probability decimal(10,4) not null,
+  max_probability decimal(10,4) not null,
+  risk_level varchar(32) not null,
+  risk_score_range varchar(64) not null,
+  business_action varchar(255) not null,
+  review_policy varchar(255),
+  enabled_flag tinyint not null default 1,
+  unique key uk_threshold_strategy_code (strategy_code)
+);
+
 create table if not exists business_scenario_template (
   id bigint primary key auto_increment,
   scenario_code varchar(64) not null,

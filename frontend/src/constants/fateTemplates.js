@@ -57,25 +57,27 @@ export const defaultAlgorithms = [
   },
   {
     algorithm_code: 'HETERO_LR',
-    algorithm_name: 'Hetero Logistic Regression',
+    algorithm_name: 'Hetero Logistic Regression（可解释基线模型）',
     algorithm_category: 'VERTICAL_CLASSIFICATION',
     fate_component: 'HeteroLR',
     federated_type: 'VERTICAL',
     task_target: 'BINARY_CLASSIFICATION',
     explainability_level: 'HIGH',
     need_psi: 1,
-    applicable_scenarios: '信用风险预测；贷款违约预测；反欺诈识别；风控评分'
+    metrics: 'AUC,KS,Recall,Precision,F1,Loss,Accuracy',
+    applicable_scenarios: '信用风险预测；贷款违约预测；输出风险概率；分析银行与运营商特征权重；作为 SecureBoost 对照组'
   },
   {
     algorithm_code: 'HETERO_SECUREBOOST',
-    algorithm_name: 'Hetero SecureBoost',
+    algorithm_name: 'Hetero SecureBoost（效果增强模型）',
     algorithm_category: 'VERTICAL_CLASSIFICATION',
     fate_component: 'HeteroSecureBoost',
     federated_type: 'VERTICAL',
     task_target: 'BINARY_CLASSIFICATION',
     explainability_level: 'MEDIUM',
     need_psi: 1,
-    applicable_scenarios: '信用风险预测；反欺诈识别；营销转化预测；复杂特征交互建模'
+    metrics: 'AUC,KS,Recall,Precision,F1,PR-AUC,Recall@TopK,Loss',
+    applicable_scenarios: '信用风险预测；反欺诈识别；营销转化预测；处理非线性特征关系和复杂特征交互'
   },
   {
     algorithm_code: 'HOMO_LR',
@@ -153,6 +155,141 @@ export const defaultAlgorithms = [
     explainability_level: 'LOW',
     need_psi: 0,
     applicable_scenarios: '样本重叠较少但存在知识迁移需求的场景'
+  }
+]
+
+export const defaultAlgorithmLayers = [
+  {
+    layer_code: 'L1_SINGLE_BASELINE',
+    layer_name: '第一层：单方基线模型',
+    layer_level: 1,
+    model_family: 'Single-party baseline',
+    algorithms: '银行单方 LR / XGBoost；运营商单方 LR / XGBoost',
+    experiment_role: '建立单方模型效果下限，衡量银行特征与运营商特征各自的信息增益。',
+    implementation_scope: '核心实现',
+    comparison_value: '作为联邦模型的对照组，形成“单方模型 vs 联邦模型”的基本实验结构。'
+  },
+  {
+    layer_code: 'L2_VERTICAL_BASELINE',
+    layer_name: '第二层：纵向联邦基础模型',
+    layer_level: 2,
+    model_family: 'Vertical federated linear model',
+    algorithms: 'PSI + Hetero Logistic Regression',
+    experiment_role: '验证多方特征在原始数据不出域条件下联合训练的可行性，并提供可解释基线。',
+    implementation_scope: '核心实现',
+    comparison_value: '输出风险概率和特征权重，可解释性强，适合作为论文基线算法。'
+  },
+  {
+    layer_code: 'L3_VERTICAL_ENHANCED',
+    layer_name: '第三层：纵向联邦增强模型',
+    layer_level: 3,
+    model_family: 'Vertical federated tree model',
+    algorithms: 'PSI + Hetero SecureBoost',
+    experiment_role: '处理非线性特征关系与复杂特征交互，提升风控表格数据建模效果。',
+    implementation_scope: '核心实现',
+    comparison_value: '与 Hetero LR 对比，体现树模型在 AUC、KS、Recall 等指标上的增强能力。'
+  },
+  {
+    layer_code: 'L4_EXTENSION_RESERVED',
+    layer_name: '第四层：扩展预留模型',
+    layer_level: 4,
+    model_family: 'Platform extension algorithms',
+    algorithms: 'Homo LR / Homo SecureBoost / Hetero Linear Regression / Federated NN / Transfer Learning',
+    experiment_role: '支撑横向联邦、回归任务、深度学习和迁移学习等后续平台扩展方向。',
+    implementation_scope: '扩展预留',
+    comparison_value: '展示平台算法扩展性，论文中作为展望与系统可演进能力。'
+  }
+]
+
+export const defaultFeatureSteps = [
+  {
+    step_code: 'MISSING_VALUE_FILL',
+    step_name: '缺失值填充',
+    step_order: 10,
+    stage_type: 'PREPROCESS',
+    target_fields: 'income_level,monthly_fee,data_usage,call_duration',
+    method_desc: '对数值字段采用均值/中位数填充，对类别字段采用 unknown 类别填充，降低样本丢失。'
+  },
+  {
+    step_code: 'OUTLIER_CLIP',
+    step_name: '异常值处理',
+    step_order: 20,
+    stage_type: 'PREPROCESS',
+    target_fields: 'monthly_fee,data_usage,call_duration,loan_amount',
+    method_desc: '使用分位数截断或业务阈值裁剪异常消费、流量、通话和贷款金额。'
+  },
+  {
+    step_code: 'CATEGORY_ENCODING',
+    step_name: '类别变量编码',
+    step_order: 30,
+    stage_type: 'FEATURE_TRANSFORM',
+    target_fields: 'package_type,income_level,customer_level',
+    method_desc: '对套餐类型、收入等级、客户等级进行 One-Hot 或序号编码。'
+  },
+  {
+    step_code: 'NUMERIC_STANDARDIZE',
+    step_name: '数值特征标准化',
+    step_order: 40,
+    stage_type: 'FEATURE_TRANSFORM',
+    target_fields: 'monthly_fee,data_usage,call_duration,credit_score',
+    method_desc: '对消费、流量、通话时长、信用评分进行标准化，适配 LR 梯度训练。'
+  },
+  {
+    step_code: 'RISK_FEATURE_BUILD',
+    step_name: '风险特征构造',
+    step_order: 50,
+    stage_type: 'FEATURE_CONSTRUCTION',
+    target_fields: 'arrears_count,online_months',
+    method_desc: '构造 arrears_count / online_months 等风险强度特征，刻画单位在网时长欠费频率。'
+  },
+  {
+    step_code: 'FEATURE_BINNING',
+    step_name: '风控分箱特征',
+    step_order: 60,
+    stage_type: 'FEATURE_BINNING',
+    target_fields: 'credit_score,online_months,loan_amount',
+    method_desc: '对信用评分、在网时长、贷款金额分段，增强风控规则解释性与稳定性。'
+  },
+  {
+    step_code: 'IMBALANCE_HANDLING',
+    step_name: '类别不平衡处理',
+    step_order: 70,
+    stage_type: 'TRAINING_STRATEGY',
+    target_fields: 'is_overdue,label',
+    method_desc: '高风险用户通常为少数类，训练与评估时弱化 Accuracy 依赖，重点关注 AUC、KS、Recall、F1、PR-AUC。'
+  }
+]
+
+export const defaultRiskThresholds = [
+  {
+    strategy_code: 'LOW_RISK_PASS',
+    strategy_name: '低风险通过策略',
+    min_probability: 0,
+    max_probability: 0.3,
+    risk_level: 'LOW',
+    risk_score_range: '700-850',
+    business_action: '可通过',
+    review_policy: '自动审批或低强度审核'
+  },
+  {
+    strategy_code: 'MEDIUM_RISK_REVIEW',
+    strategy_name: '中风险复核策略',
+    min_probability: 0.3,
+    max_probability: 0.6,
+    risk_level: 'MEDIUM',
+    risk_score_range: '550-699',
+    business_action: '人工复核',
+    review_policy: '结合征信、收入与通信稳定性进行补充审核'
+  },
+  {
+    strategy_code: 'HIGH_RISK_REJECT',
+    strategy_name: '高风险重点审查策略',
+    min_probability: 0.6,
+    max_probability: 1,
+    risk_level: 'HIGH',
+    risk_score_range: '300-549',
+    business_action: '拒绝或重点审查',
+    review_policy: '进入高风险名单，触发人工复审或拒绝授信'
   }
 ]
 
